@@ -13,166 +13,172 @@
 -->
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { X, Edit3, Building2, Users, Save, AlertTriangle, Trash2 } from 'lucide-vue-next'
-import ImageUploader from './ImageUploader.vue'
-import { useColorThief } from '@/composables/useColorThief'
+  import { computed, ref, watch } from 'vue';
+  import { X, Edit3, Building2, Users, Save, AlertTriangle, Trash2 } from 'lucide-vue-next';
+  import ImageUploader from './ImageUploader.vue';
+  import { useColorThief } from '@/composables/useColorThief';
 
-interface Insurer {
-  name: string
-  logo: string
-  description: string
-  stats: {
-    clients: string
+  interface Insurer {
+    name: string;
+    logo: string;
+    description: string;
+    stats: {
+      clients: string;
+    };
+    contact?: {
+      phone: string;
+      email: string;
+      address: string;
+    };
+    services?: string[];
   }
-  contact?: {
-    phone: string
-    email: string
-    address: string
-  }
-  services?: string[]
-}
 
-const props = defineProps<{
-  show: boolean
-  insurer: Insurer | null
-}>()
+  const props = defineProps<{
+    show: boolean;
+    insurer: Insurer | null;
+  }>();
 
-const emit = defineEmits<{
-  close: []
-  save: [insurer: Insurer]
-  'delete-insurer': [name: string]
-}>()
+  const emit = defineEmits<{
+    close: [];
+    save: [insurer: Insurer];
+    'delete-insurer': [name: string];
+  }>();
 
-// Estado local para edición
-const isEditing = ref(false)
-const editedInsurer = ref<Insurer | null>(null)
-const hasUnsavedChanges = ref(false)
-const showCloseConfirmation = ref(false)
-const showDeleteConfirmation = ref(false)
-const showImageUploader = ref(false)
-const bannerColors = ref<string[]>([])
-const bannerGradient = ref<string>('')
+  // Estado local para edición
+  const isEditing = ref(false);
+  const editedInsurer = ref<Insurer | null>(null);
+  const hasUnsavedChanges = ref(false);
+  const showCloseConfirmation = ref(false);
+  const showDeleteConfirmation = ref(false);
+  const showImageUploader = ref(false);
+  const bannerColors = ref<string[]>([]);
+  const bannerGradient = ref<string>('');
 
-const { extractColors, createOverlay } = useColorThief()
+  const { extractColors, createOverlay } = useColorThief();
 
-// Computar clases dinámicas para la animación del modal
-const modalClasses = computed(() => ({
-  'opacity-0 scale-95': !props.show,
-  'opacity-100 scale-100': props.show
-}))
+  // Computar clases dinámicas para la animación del modal
+  const modalClasses = computed(() => ({
+    'opacity-0 scale-95': !props.show,
+    'opacity-100 scale-100': props.show,
+  }));
 
-const overlayClasses = computed(() => ({
-  'opacity-0 pointer-events-none': !props.show,
-  'opacity-100 pointer-events-auto': props.show
-}))
+  const overlayClasses = computed(() => ({
+    'opacity-0 pointer-events-none': !props.show,
+    'opacity-100 pointer-events-auto': props.show,
+  }));
 
-// Manejar cambios en los datos
-const handleInputChange = () => {
-  hasUnsavedChanges.value = true
-}
+  // Manejar cambios en los datos
+  const handleInputChange = () => {
+    hasUnsavedChanges.value = true;
+  };
 
-// Manejar cierre del modal
-const handleClose = () => {
-  if (hasUnsavedChanges.value && isEditing.value) {
-    showCloseConfirmation.value = true
-  } else {
-    closeModal()
-  }
-}
+  // Manejar cierre del modal
+  const handleClose = () => {
+    if (hasUnsavedChanges.value && isEditing.value) {
+      showCloseConfirmation.value = true;
+    } else {
+      closeModal();
+    }
+  };
 
-const closeModal = () => {
-  isEditing.value = false
-  hasUnsavedChanges.value = false
-  showCloseConfirmation.value = false
-  showImageUploader.value = false
-  bannerColors.value = []
-  bannerGradient.value = ''
-  emit('close')
-}
+  const closeModal = () => {
+    isEditing.value = false;
+    hasUnsavedChanges.value = false;
+    showCloseConfirmation.value = false;
+    showImageUploader.value = false;
+    bannerColors.value = [];
+    bannerGradient.value = '';
+    emit('close');
+  };
 
-const cancelClose = () => {
-  showCloseConfirmation.value = false
-}
+  const cancelClose = () => {
+    showCloseConfirmation.value = false;
+  };
 
-// Manejar guardado de cambios
-const handleSave = () => {
-  if (editedInsurer.value) {
-    // Limpiar el objeto contact si todos los campos están vacíos
-    if (editedInsurer.value.contact &&
+  // Manejar guardado de cambios
+  const handleSave = () => {
+    if (editedInsurer.value) {
+      // Limpiar el objeto contact si todos los campos están vacíos
+      if (
+        editedInsurer.value.contact &&
         !editedInsurer.value.contact.phone &&
         !editedInsurer.value.contact.email &&
-        !editedInsurer.value.contact.address) {
-      delete editedInsurer.value.contact
-    }
-    emit('save', editedInsurer.value)
-    isEditing.value = false
-    hasUnsavedChanges.value = false
-  }
-}
-
-// Manejar eliminación de aseguradora
-const handleDeleteInsurer = (name: string) => {
-  showDeleteConfirmation.value = false
-  emit('close')
-  emit('delete-insurer', name)
-}
-
-// Manejar actualización de imagen
-const handleImageUpdate = async (data: { url: string; dominantColor: string | null }) => {
-  if (editedInsurer.value) {
-    editedInsurer.value.logo = data.url
-    
-    try {
-      const colors = await extractColors(data.url)
-      bannerColors.value = [colors.dominantColor, ...colors.palette.slice(0, 2)]
-      bannerGradient.value = createOverlay(colors.dominantColor)
-    } catch (error) {
-      console.error('Error al extraer colores:', error)
-    }
-    
-    showImageUploader.value = false
-    handleInputChange()
-  }
-}
-
-// Inicializar datos de edición cuando se abre el modal
-watch(() => props.insurer, async (newValue) => {
-  if (newValue) {
-    // Asegurarse de que contact exista al editar
-    const insurerWithContact = {
-      ...newValue,
-      contact: newValue.contact || {
-        phone: '',
-        email: '',
-        address: ''
+        !editedInsurer.value.contact.address
+      ) {
+        delete editedInsurer.value.contact;
       }
+      emit('save', editedInsurer.value);
+      isEditing.value = false;
+      hasUnsavedChanges.value = false;
     }
-    editedInsurer.value = JSON.parse(JSON.stringify(insurerWithContact))
-    
-    // Extraer colores del logo inicial
-    if (newValue.logo) {
+  };
+
+  // Manejar eliminación de aseguradora
+  const handleDeleteInsurer = (name: string) => {
+    showDeleteConfirmation.value = false;
+    emit('close');
+    emit('delete-insurer', name);
+  };
+
+  // Manejar actualización de imagen
+  const handleImageUpdate = async (data: { url: string; dominantColor: string | null }) => {
+    if (editedInsurer.value) {
+      editedInsurer.value.logo = data.url;
+
       try {
-        const colors = await extractColors(newValue.logo)
-        bannerColors.value = [colors.dominantColor, ...colors.palette.slice(0, 2)]
-        bannerGradient.value = createOverlay(colors.dominantColor)
+        const colors = await extractColors(data.url);
+        bannerColors.value = [colors.dominantColor, ...colors.palette.slice(0, 2)];
+        bannerGradient.value = createOverlay(colors.dominantColor);
       } catch (error) {
-        console.error('Error al extraer colores:', error)
+        console.error('Error al extraer colores:', error);
       }
+
+      showImageUploader.value = false;
+      handleInputChange();
     }
-  }
-}, { immediate: true })
+  };
+
+  // Inicializar datos de edición cuando se abre el modal
+  watch(
+    () => props.insurer,
+    async (newValue) => {
+      if (newValue) {
+        // Asegurarse de que contact exista al editar
+        const insurerWithContact = {
+          ...newValue,
+          contact: newValue.contact || {
+            phone: '',
+            email: '',
+            address: '',
+          },
+        };
+        editedInsurer.value = JSON.parse(JSON.stringify(insurerWithContact));
+
+        // Extraer colores del logo inicial
+        if (newValue.logo) {
+          try {
+            const colors = await extractColors(newValue.logo);
+            bannerColors.value = [colors.dominantColor, ...colors.palette.slice(0, 2)];
+            bannerGradient.value = createOverlay(colors.dominantColor);
+          } catch (error) {
+            console.error('Error al extraer colores:', error);
+          }
+        }
+      }
+    },
+    { immediate: true },
+  );
 </script>
 
 <template>
   <!-- Overlay con efecto de desenfoque -->
-  <div 
+  <div
     class="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 z-[999]"
     :class="overlayClasses"
     @click="handleClose"
   >
     <!-- Contenedor del modal -->
-    <div 
+    <div
       class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[600px] max-h-[90vh] bg-background rounded-2xl shadow-xl transition-all duration-300 overflow-hidden"
       :class="modalClasses"
       @click.stop
@@ -182,65 +188,68 @@ watch(() => props.insurer, async (newValue) => {
         <!-- Fondo con efecto blur y gradiente -->
         <div class="absolute inset-0">
           <!-- Capa de imagen con blur -->
-          <div 
+          <div
             v-if="editedInsurer"
             class="absolute inset-0 bg-cover bg-center"
-            :style="{ 
+            :style="{
               backgroundImage: `url(${editedInsurer.logo})`,
               backgroundSize: '150%',
               filter: 'blur(24px) saturate(1.2)',
               transform: 'scale(1.2)',
-              opacity: 0.6
+              opacity: 0.6,
             }"
           />
-          
+
           <!-- Capa de gradiente de color -->
-          <div 
+          <div
             class="absolute inset-0"
-            :style="{ 
-              background: bannerColors.length > 0 
-                ? `linear-gradient(135deg, ${bannerColors.map((color, index) => 
-                    `${color} ${index * 33}%`).join(', ')})`
-                : 'var(--color-primary)',
+            :style="{
+              background:
+                bannerColors.length > 0
+                  ? `linear-gradient(135deg, ${bannerColors
+                      .map((color, index) => `${color} ${index * 33}%`)
+                      .join(', ')})`
+                  : 'var(--color-primary)',
               opacity: 0.7,
-              mixBlendMode: 'soft-light'
+              mixBlendMode: 'soft-light',
             }"
           />
-          
+
           <!-- Capa de overlay -->
-          <div 
+          <div
             class="absolute inset-0"
-            :style="{ 
-              background: bannerGradient || 'linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.4))',
-              mixBlendMode: 'multiply'
+            :style="{
+              background:
+                bannerGradient || 'linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.4))',
+              mixBlendMode: 'multiply',
             }"
           />
-          
+
           <!-- Capa de brillo -->
-          <div 
+          <div
             class="absolute inset-0"
-            :style="{ 
+            :style="{
               background: 'radial-gradient(circle at top left, rgba(255,255,255,0.1), transparent)',
-              mixBlendMode: 'overlay'
+              mixBlendMode: 'overlay',
             }"
           />
         </div>
 
         <!-- Botón de cerrar -->
-        <button 
+        <button
           class="absolute top-4 right-4 p-2 rounded-xl bg-black/20 backdrop-blur-sm border border-white/10 text-white transition-transform duration-300 hover:scale-110 z-10"
           @click="handleClose"
         >
           <X class="w-5 h-5" />
         </button>
-        
+
         <!-- Logo y botón de cambiar -->
         <div class="absolute top-6 left-6 flex items-center gap-3">
           <div class="w-20 h-20 rounded-2xl bg-background p-2 shadow-lg z-10">
-            <img 
+            <img
               v-if="editedInsurer"
               ref="imagePreview"
-              :src="editedInsurer.logo" 
+              :src="editedInsurer.logo"
               :alt="editedInsurer.name"
               class="w-full h-full rounded-xl object-cover"
             />
@@ -272,14 +281,14 @@ watch(() => props.insurer, async (newValue) => {
                 <h2 v-else class="text-2xl font-semibold text-text">{{ editedInsurer.name }}</h2>
               </div>
               <div class="flex items-center gap-2">
-                <button 
+                <button
                   class="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-medium transition-all duration-300 hover:bg-red-600 hover:-translate-y-0.5 hover:shadow-lg"
                   @click="showDeleteConfirmation = true"
                 >
                   <Trash2 class="w-4 h-4" />
                   <span>Eliminar</span>
                 </button>
-                <button 
+                <button
                   v-if="isEditing"
                   class="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium transition-all duration-300 hover:bg-primary-hover hover:-translate-y-0.5 hover:shadow-lg"
                   @click="handleSave"
@@ -287,7 +296,7 @@ watch(() => props.insurer, async (newValue) => {
                   <Save class="w-4 h-4" />
                   <span>Guardar</span>
                 </button>
-                <button 
+                <button
                   v-else
                   class="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium transition-all duration-300 hover:bg-primary-hover hover:-translate-y-0.5 hover:shadow-lg"
                   @click="isEditing = true"
@@ -311,7 +320,9 @@ watch(() => props.insurer, async (newValue) => {
 
           <!-- Estadísticas -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div class="p-4 bg-input-bg rounded-xl border border-input-border transition-all duration-300 hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5">
+            <div
+              class="p-4 bg-input-bg rounded-xl border border-input-border transition-all duration-300 hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5"
+            >
               <div class="flex items-center gap-3 mb-2">
                 <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                   <Users class="w-4 h-4 text-primary" />
@@ -320,14 +331,18 @@ watch(() => props.insurer, async (newValue) => {
               </div>
               <p class="text-2xl font-semibold text-primary">{{ editedInsurer.stats.clients }}</p>
             </div>
-            <div class="p-4 bg-input-bg rounded-xl border border-input-border transition-all duration-300 hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5">
+            <div
+              class="p-4 bg-input-bg rounded-xl border border-input-border transition-all duration-300 hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5"
+            >
               <div class="flex items-center gap-3 mb-2">
                 <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                   <Building2 class="w-4 h-4 text-primary" />
                 </div>
                 <h3 class="text-sm font-medium text-text">Servicios</h3>
               </div>
-              <p class="text-2xl font-semibold text-primary">{{ editedInsurer.services?.length || 0 }}</p>
+              <p class="text-2xl font-semibold text-primary">
+                {{ editedInsurer.services?.length || 0 }}
+              </p>
             </div>
           </div>
 
@@ -335,7 +350,9 @@ watch(() => props.insurer, async (newValue) => {
           <div class="space-y-4">
             <h3 class="text-lg font-semibold text-text">Información de Contacto</h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div class="flex items-center gap-3 p-3 bg-input-bg rounded-xl border border-input-border transition-all duration-300 hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5">
+              <div
+                class="flex items-center gap-3 p-3 bg-input-bg rounded-xl border border-input-border transition-all duration-300 hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5"
+              >
                 <input
                   v-if="isEditing"
                   v-model="editedInsurer.contact!.phone"
@@ -344,9 +361,13 @@ watch(() => props.insurer, async (newValue) => {
                   class="flex-1 bg-transparent border-none text-sm text-text focus:outline-none"
                   @input="handleInputChange"
                 />
-                <span v-else class="text-sm text-text">{{ editedInsurer.contact?.phone || 'No disponible' }}</span>
+                <span v-else class="text-sm text-text">{{
+                  editedInsurer.contact?.phone || 'No disponible'
+                }}</span>
               </div>
-              <div class="flex items-center gap-3 p-3 bg-input-bg rounded-xl border border-input-border transition-all duration-300 hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5">
+              <div
+                class="flex items-center gap-3 p-3 bg-input-bg rounded-xl border border-input-border transition-all duration-300 hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5"
+              >
                 <input
                   v-if="isEditing"
                   v-model="editedInsurer.contact!.email"
@@ -355,10 +376,14 @@ watch(() => props.insurer, async (newValue) => {
                   class="flex-1 bg-transparent border-none text-sm text-text focus:outline-none"
                   @input="handleInputChange"
                 />
-                <span v-else class="text-sm text-text">{{ editedInsurer.contact?.email || 'No disponible' }}</span>
+                <span v-else class="text-sm text-text">{{
+                  editedInsurer.contact?.email || 'No disponible'
+                }}</span>
               </div>
             </div>
-            <div class="flex items-center gap-3 p-3 bg-input-bg rounded-xl border border-input-border transition-all duration-300 hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5">
+            <div
+              class="flex items-center gap-3 p-3 bg-input-bg rounded-xl border border-input-border transition-all duration-300 hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5"
+            >
               <input
                 v-if="isEditing"
                 v-model="editedInsurer.contact!.address"
@@ -367,7 +392,9 @@ watch(() => props.insurer, async (newValue) => {
                 class="flex-1 bg-transparent border-none text-sm text-text focus:outline-none"
                 @input="handleInputChange"
               />
-              <span v-else class="text-sm text-text">{{ editedInsurer.contact?.address || 'No disponible' }}</span>
+              <span v-else class="text-sm text-text">{{
+                editedInsurer.contact?.address || 'No disponible'
+              }}</span>
             </div>
           </div>
         </div>
@@ -419,7 +446,9 @@ watch(() => props.insurer, async (newValue) => {
           <h3 class="text-lg font-semibold text-text">Confirmar Eliminación</h3>
         </div>
         <p class="text-text/70">
-          ¿Está seguro que desea eliminar la aseguradora <span class="font-medium text-text">{{ editedInsurer?.name }}</span>? Esta acción no se puede deshacer.
+          ¿Está seguro que desea eliminar la aseguradora
+          <span class="font-medium text-text">{{ editedInsurer?.name }}</span
+          >? Esta acción no se puede deshacer.
         </p>
         <div class="flex justify-end gap-3">
           <button
@@ -466,17 +495,17 @@ watch(() => props.insurer, async (newValue) => {
 </template>
 
 <style>
-.vue-advanced-cropper {
-  background: transparent !important;
-}
-.vue-advanced-cropper__background {
-  background: var(--color-input-bg) !important;
-  opacity: 0.5 !important;
-}
-.vue-advanced-cropper__foreground {
-  border-radius: 0.75rem !important;
-}
-.vue-advanced-cropper__stencil {
-  border-radius: 0.75rem !important;
-}
+  .vue-advanced-cropper {
+    background: transparent !important;
+  }
+  .vue-advanced-cropper__background {
+    background: var(--color-input-bg) !important;
+    opacity: 0.5 !important;
+  }
+  .vue-advanced-cropper__foreground {
+    border-radius: 0.75rem !important;
+  }
+  .vue-advanced-cropper__stencil {
+    border-radius: 0.75rem !important;
+  }
 </style>

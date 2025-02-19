@@ -44,7 +44,7 @@
       <!-- Estilo outline con hover a color sólido -->
       <RouterLink
         class="px-6 py-2.5 sm:px-4 sm:py-2 rounded-md text-text bg-transparent border-2 border-primary font-medium uppercase text-sm sm:text-xs tracking-wider transition-all duration-300 hover:bg-primary hover:text-white"
-        to="/login"
+        :to="{ name: 'login' }"
       >
         Iniciar
       </RouterLink>
@@ -53,7 +53,7 @@
       <!-- Estilo sólido con hover de elevación -->
       <RouterLink
         class="px-6 py-2.5 sm:px-4 sm:py-2 rounded-md text-white bg-primary font-medium uppercase text-sm sm:text-xs tracking-wider transition-all duration-300 hover:bg-primary-hover hover:-translate-y-0.5"
-        to="/register"
+        :to="{ name: 'register' }"
       >
         Registro
       </RouterLink>

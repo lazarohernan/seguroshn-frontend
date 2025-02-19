@@ -12,7 +12,7 @@
   import { ref, reactive } from 'vue';
   import { Camera, Save } from 'lucide-vue-next';
   import { useRouter } from 'vue-router';
-  import ImageUploader from '@/components/ImageUploader.vue';
+  import ImageUploader from '@/modules/admin/components/ImageUploader.vue';
   import Avatar from '@/components/Avatar.vue';
   import ThemeToggle from '@/modules/common/components/ThemeToggle.vue';
 

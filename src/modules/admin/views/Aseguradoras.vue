@@ -22,39 +22,116 @@
         </div>
       </div>
 
+      <!--MENSAJE SI NO HAY REGISTROS-->
       <div
-        v-if="filteredInsurers.length === 0"
+        v-if="aseguradoras !== undefined && aseguradoras.length === 0"
         class="bg-container-bg border border-gray-200 dark:border-gray-700 rounded-2xl p-12"
       >
         <div class="flex flex-col items-center justify-center gap-4">
           <div class="p-4 rounded-full bg-primary/10">
             <Search class="w-12 h-12 text-primary" />
           </div>
-          <h3 class="text-xl font-medium text-text">No se encontraron resultados</h3>
-          <p class="text-text/70 text-center max-w-md">
-            No hay aseguradoras que coincidan con "{{ searchQuery }}". Intenta con otros términos o
-            revisa la ortografía.
-          </p>
+          <h3 class="text-xl font-medium text-text">No hay registros aún</h3>
+          <p class="text-text/70 text-center max-w-md">Ingresa registros.</p>
         </div>
       </div>
 
+      <!--REGISTROS DE BD-->
       <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div
-          v-for="aseguradora in aseguradoras"
+          v-for="aseguradora in filteredInsurers"
           :key="aseguradora.id_aseguradora"
           class="bg-container-bg border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-2 hover:shadow-lg"
         >
+          <div class="relative h-[120px] overflow-hidden">
+            <!-- Fondo con efecto blur y gradiente -->
+            <div class="absolute inset-0">
+              <!-- Capa de imagen con blur (solo si no es un avatar generado) -->
+              <div
+                v-if="!isGeneratedAvatar(aseguradora.logo)"
+                class="absolute inset-0 bg-cover bg-center"
+                :style="{
+                  backgroundImage: `url(${aseguradora.logo})`,
+                  backgroundSize: '150%',
+                  filter: 'blur(24px) saturate(1.2)',
+                  transform: 'scale(1.2)',
+                  opacity: 0.6,
+                }"
+              />
+
+              <!-- Capa de gradiente de color -->
+              <div
+                class="absolute inset-0"
+                :style="{
+                  background: insurerColors.get(aseguradora.nombre)?.colors.length
+                    ? `linear-gradient(135deg, ${insurerColors
+                        .get(aseguradora.nombre)
+                        ?.colors.map((color, index) => `${color} ${index * 33}%`)
+                        .join(', ')})`
+                    : 'var(--color-primary)',
+                  opacity: 0.7,
+                  mixBlendMode: 'soft-light',
+                }"
+              />
+
+              <!-- Capa de overlay -->
+              <div
+                class="absolute inset-0"
+                :style="{
+                  background:
+                    insurerColors.get(aseguradora.nombre)?.gradient ||
+                    'linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.4))',
+                  mixBlendMode: 'multiply',
+                }"
+              />
+
+              <!-- Capa de brillo -->
+              <div
+                class="absolute inset-0"
+                :style="{
+                  background:
+                    'radial-gradient(circle at top left, rgba(255,255,255,0.1), transparent)',
+                  mixBlendMode: 'overlay',
+                }"
+              />
+            </div>
+
+            <!-- Avatar con iniciales o imagen -->
+            <div
+              class="absolute top-4 left-4 w-16 h-16 rounded-xl bg-container-bg p-1 shadow-lg transition-transform duration-300 z-10 hover:scale-105"
+            >
+              <div
+                v-if="isGeneratedAvatar(aseguradora.logo)"
+                class="w-full h-full rounded-lg flex items-center justify-center text-xl font-semibold"
+                :style="{
+                  backgroundColor:
+                    insurerColors.get(aseguradora.nombre)?.colors[0] || 'var(--color-primary)',
+                  color: '#ffffff',
+                }"
+              >
+                {{ generateAvatarUrl(aseguradora.nombre).split('name=')[1].split('&')[0] }}
+              </div>
+              <img
+                v-else
+                :src="aseguradora.logo"
+                :alt="aseguradora.nombre"
+                class="w-full h-full rounded-lg object-cover"
+                crossorigin="anonymous"
+              />
+            </div>
+          </div>
           <div class="p-6">
             <h3 class="text-xl font-semibold text-text mb-3">{{ aseguradora.nombre }}</h3>
             <p class="text-sm text-text/70 mb-4 line-clamp-2">{{ aseguradora.descripcion }}</p>
             <div class="p-3 bg-input-bg rounded-xl border border-input-border mb-4">
               <div class="flex flex-col items-center">
-                <span class="text-lg font-semibold text-primary">Algo aquí</span>
+                <span class="text-lg font-semibold text-primary">{{ aseguradora.tel_gestor }}</span>
                 <span class="text-xs text-text/70">Clientes</span>
               </div>
             </div>
             <button
               class="w-full px-4 py-2 rounded-xl bg-input-bg border border-input-border text-sm font-medium text-text transition-all duration-300 hover:bg-primary hover:border-primary hover:text-white hover:-translate-y-0.5 hover:shadow-md"
+              @click="handleViewInsurer(aseguradora)"
             >
               Ver más
             </button>
@@ -75,56 +152,48 @@
 </template>
 
 <script setup lang="ts">
-  import { ref } from 'vue';
-  import AddInsurerModal from '@/components/AddInsurerModal.vue';
-  import ViewInsurerModal from '@/components/ViewInsurerModal.vue';
-  import SearchBar from '@/components/SearchBar.vue';
+  import { ref, onMounted, computed, watch } from 'vue';
   import { Plus, Search } from 'lucide-vue-next';
-  import { useSearch } from '@/composables/useSearch';
   import { useColorThief } from '@/composables/useColorThief';
   import { useQuery } from '@tanstack/vue-query';
   import { getAseguradorasAction } from '../actions/get_aseguradoras_action';
+  import SearchBar from '@/components/SearchBar.vue';
 
-  //! Query principal para obtener todos los registros
-  //const queryClient = useQueryClient(); //Viene con el plugin de tanstack/vue-query
+  import AddInsurerModal from '@/components/AddInsurerModal.vue';
+  import ViewInsurerModal from '@/modules/admin/components/ViewInsurerModal.vue';
+  import type { Aseguradora } from '../interfaces/aseguradora_interface';
+  import { useSearch } from '@/composables/useSearch';
+
+  const showAddModal = ref(false);
+  const showViewModal = ref(false);
+  const selectedInsurer = ref<Aseguradora | null>(null);
+  const insurerColors = ref<Map<string, { colors: string[]; gradient: string }>>(new Map());
 
   //Obtener el id_correduria del localstorage
   const id_correduria = localStorage.getItem('id_correduria') ?? '';
 
-  const { data: aseguradoras } = useQuery({
+  //Llamada a la API
+  const { data: response } = useQuery({
     queryKey: ['aseguradoras', id_correduria],
-    queryFn: () => getAseguradorasAction(1, 10, id_correduria),
+    queryFn: async () => {
+      return await getAseguradorasAction(id_correduria);
+    },
   });
 
-  console.log(aseguradoras);
+  // Desestructuramos response para obtener aseguradoras
+  const aseguradoras = computed(() => response.value?.data ?? []);
 
-  //utilizando un watchEffect, el cual está pendiente de cualquier variable reactiva
-  // watchEffect(() => {
-  //   //Precargado de la SIGUIENTE página
-  //   queryClient.prefetchQuery({
-  //     queryKey: ['aseguradoras'],
-  //     queryFn: () => getAseguradorasAction(1, 10, id_correduria),
-  //   });
-  // });
+  const { searchQuery, filteredItems } = useSearch(aseguradoras, ['nombre', 'descripcion']);
+  const filteredInsurers = ref(filteredItems.value);
 
-  interface Insurer {
-    name: string;
-    logo: string;
-    description: string;
-    stats: {
-      clients: string;
-    };
-    contact?: {
-      phone: string;
-      email: string;
-      address: string;
-    };
-    services?: string[];
-  }
+  // Sincronizar filteredInsurers con filteredItems
+  watch(filteredItems, (newVal) => {
+    filteredInsurers.value = newVal;
+  });
 
   // Función para verificar si es una URL de avatar generado
-  const isGeneratedAvatar = (url: string): boolean => {
-    return url.includes('ui-avatars.com');
+  const isGeneratedAvatar = (url?: string): boolean => {
+    return typeof url === 'string' && url.includes('ui-avatars.com');
   };
 
   // Función para generar URL del avatar con iniciales
@@ -170,140 +239,56 @@
     };
   };
 
-  const insurers = ref<Insurer[]>([
-    {
-      name: 'Aseguradora 1',
-      logo: 'https://ui-avatars.com/api/?name=A1&background=8CBFCF&color=fff&size=120&bold=true&format=svg',
-      description: 'Líder en seguros con más de 50 años de experiencia en el mercado.',
-      stats: {
-        clients: '100+',
-      },
-      contact: {
-        phone: '+504 2234-5678',
-        email: 'contacto@aseguradora1.com',
-        address: 'Col. Palmira, Tegucigalpa, Honduras',
-      },
-      services: ['Seguro de Vida', 'Seguro de Auto', 'Seguro de Hogar', 'Seguro Médico'],
-    },
-    {
-      name: 'Aseguradora 2',
-      logo: 'https://ui-avatars.com/api/?name=A2&background=9BC53D&color=fff&size=120&bold=true&format=svg',
-      description: 'Soluciones innovadoras en seguros para particulares y empresas.',
-      stats: {
-        clients: '250+',
-      },
-      contact: {
-        phone: '+504 2234-5679',
-        email: 'info@aseguradora2.com',
-        address: 'Col. Lomas del Guijarro, Tegucigalpa, Honduras',
-      },
-      services: ['Seguro de Vida', 'Seguro de Auto', 'Seguro Empresarial'],
-    },
-    {
-      name: 'Aseguradora 3',
-      logo: 'https://ui-avatars.com/api/?name=A3&background=373F51&color=fff&size=120&bold=true&format=svg',
-      description: 'Comprometidos con la excelencia y la satisfacción del cliente.',
-      stats: {
-        clients: '50+',
-      },
-      contact: {
-        phone: '+504 2234-5680',
-        email: 'servicio@aseguradora3.com',
-        address: 'Col. El Prado, Tegucigalpa, Honduras',
-      },
-      services: ['Seguro de Vida', 'Seguro de Salud'],
-    },
-    {
-      name: 'Seguros del Pacífico',
-      logo: 'https://ui-avatars.com/api/?name=SP&background=8CBFCF&color=fff&size=120&bold=true&format=svg',
-      description: 'Especialistas en seguros marítimos y de transporte internacional.',
-      stats: {
-        clients: '75+',
-      },
-      contact: {
-        phone: '+504 2234-5681',
-        email: 'info@segurospacifico.com',
-        address: 'Col. Las Minitas, Tegucigalpa, Honduras',
-      },
-      services: ['Seguro Marítimo', 'Seguro de Carga', 'Seguro de Transporte'],
-    },
-    {
-      name: 'Aseguradora Nacional',
-      logo: 'https://ui-avatars.com/api/?name=AN&background=9BC53D&color=fff&size=120&bold=true&format=svg',
-      description: 'Cobertura nacional con presencia en todas las principales ciudades.',
-      stats: {
-        clients: '300+',
-      },
-      contact: {
-        phone: '+504 2234-5682',
-        email: 'contacto@aseguradoranacional.com',
-        address: 'Col. Kennedy, Tegucigalpa, Honduras',
-      },
-      services: [
-        'Seguro de Vida',
-        'Seguro de Auto',
-        'Seguro de Hogar',
-        'Seguro Médico',
-        'Seguro Empresarial',
-      ],
-    },
-  ]);
-
-  const showAddModal = ref(false);
-  const showViewModal = ref(false);
-  const selectedInsurer = ref<Insurer | null>(null);
-  const insurerColors = ref<Map<string, { colors: string[]; gradient: string }>>(new Map());
-
-  const { searchQuery, filteredItems: filteredInsurers } = useSearch(insurers.value, [
-    'name',
-    'description',
-  ]);
   const { extractColors, createOverlay } = useColorThief();
 
   // Función para extraer y guardar colores del logo
-  const extractLogoColors = async (insurer: Insurer) => {
+  const extractLogoColors = async (insurer: Aseguradora) => {
     // Si es un avatar generado, usar colores predefinidos
     if (isGeneratedAvatar(insurer.logo)) {
-      insurerColors.value.set(insurer.name, getDefaultColors(insurer.name));
+      insurerColors.value.set(insurer.nombre, getDefaultColors(insurer.nombre));
       return;
     }
 
     // Si es una imagen real, intentar extraer colores
     try {
       const colors = await extractColors(insurer.logo);
-      insurerColors.value.set(insurer.name, {
+      insurerColors.value.set(insurer.nombre, {
         colors: [colors.dominantColor, ...colors.palette.slice(0, 2)],
         gradient: createOverlay(colors.dominantColor),
       });
     } catch (error) {
       console.error('Error al extraer colores:', error);
       // Usar colores predefinidos en caso de error
-      insurerColors.value.set(insurer.name, getDefaultColors(insurer.name));
+      insurerColors.value.set(insurer.nombre, getDefaultColors(insurer.nombre));
     }
   };
 
+  // Inicializar colores para todas las aseguradoras
+  onMounted(async () => {
+    for (const insurer of aseguradoras.value ?? []) {
+      await extractLogoColors(insurer);
+    }
+  });
+
+  //!------FUNCIONES PARA VER, EDITAR O AGREGAR ASEGURADORA
   const handleAddInsurer = async (data: { name: string; description: string; logo: string }) => {
-    const newInsurer: Insurer = {
-      ...data,
-      stats: {
-        clients: '0',
-      },
-    };
-    insurers.value.push(newInsurer);
+    //TODO: LÓGICA PARA LLAMAR A LA API PARA CREAR UNA NUEVA ASEGURADORA
+    //await extractLogoColors(newInsurer)
     showAddModal.value = false;
   };
 
-  const handleViewInsurer = (insurer: Insurer) => {
+  const handleViewInsurer = (insurer: Aseguradora) => {
     selectedInsurer.value = insurer;
     showViewModal.value = true;
   };
 
-  const handleSaveInsurer = async (updatedInsurer: Insurer) => {
-    const index = insurers.value.findIndex((i) => i.name === selectedInsurer.value?.name);
+  const handleSaveInsurer = async (updatedInsurer: Aseguradora) => {
+    const index =
+      aseguradoras !== undefined
+        ? aseguradoras.value!.findIndex((i) => i.nombre === selectedInsurer.value?.nombre)
+        : -1;
     if (index !== -1) {
-      // Mantener el número de clientes original
-      updatedInsurer.stats.clients = insurers.value[index].stats.clients;
-      insurers.value[index] = updatedInsurer;
+      //TODO: MANEJAR EL UPDATE ASEGURADORA CON LA API
     }
     showViewModal.value = false;
     selectedInsurer.value = null;

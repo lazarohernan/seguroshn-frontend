@@ -1,15 +1,9 @@
 import { api } from '@/api/axiosInstance';
-import type { Aseguradora } from '../interfaces/aseguradora_interface';
+import type { Respuesta } from '../interfaces/aseguradora_interface';
 
-export const getAseguradorasAction = async (
-  page: number = 1,
-  limit: number = 10,
-  id_correduria: string,
-) => {
+export const getAseguradorasAction = async (id_correduria: string) => {
   try {
-    const { data } = await api.get<Aseguradora[]>(
-      `/aseguradoras?limite=${limit}&pagina=${page}&id_correduria=${id_correduria}`,
-    );
+    const { data } = await api.get<Respuesta>(`/aseguradoras/?id_correduria=${id_correduria}`);
 
     return data;
   } catch (error) {
