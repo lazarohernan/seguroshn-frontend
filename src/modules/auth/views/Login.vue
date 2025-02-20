@@ -123,12 +123,10 @@
   // Importaciones necesarias
   import { ref, reactive } from 'vue';
   import { Mail, Lock, Eye, EyeOff } from 'lucide-vue-next';
-  import { useToast } from 'vue-toastification';
   import { useAuthStore } from '../stores/auth-store';
   import { useRouter } from 'vue-router';
 
   const authStore = useAuthStore();
-  const toast = useToast();
   const router = useRouter();
 
   // Store y estado local
@@ -171,7 +169,6 @@
 
     if (!ok) {
       error.value = 'Credenciales incorrectas';
-      toast.error(error.value);
       loading.value = false; // Desactivar estado de carga
       return;
     }

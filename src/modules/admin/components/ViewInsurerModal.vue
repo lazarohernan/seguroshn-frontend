@@ -1,175 +1,3 @@
-<!--
-  ViewInsurerModal.vue
-  
-  Modal para ver y editar detalles de una aseguradora.
-  Características:
-  - Muestra información detallada de la aseguradora
-  - Permite edición in-situ
-  - Validación antes de cerrar con cambios pendientes
-  - Diseño responsivo
-  - Consistencia visual
-  - Animaciones suaves
-  - Accesibilidad mejorada
--->
-
-<script setup lang="ts">
-  import { computed, ref, watch } from 'vue';
-  import { X, Edit3, Building2, Users, Save, AlertTriangle, Trash2 } from 'lucide-vue-next';
-  import ImageUploader from './ImageUploader.vue';
-  import { useColorThief } from '@/composables/useColorThief';
-
-  interface Insurer {
-    name: string;
-    logo: string;
-    description: string;
-    stats: {
-      clients: string;
-    };
-    contact?: {
-      phone: string;
-      email: string;
-      address: string;
-    };
-    services?: string[];
-  }
-
-  const props = defineProps<{
-    show: boolean;
-    insurer: Insurer | null;
-  }>();
-
-  const emit = defineEmits<{
-    close: [];
-    save: [insurer: Insurer];
-    'delete-insurer': [name: string];
-  }>();
-
-  // Estado local para edición
-  const isEditing = ref(false);
-  const editedInsurer = ref<Insurer | null>(null);
-  const hasUnsavedChanges = ref(false);
-  const showCloseConfirmation = ref(false);
-  const showDeleteConfirmation = ref(false);
-  const showImageUploader = ref(false);
-  const bannerColors = ref<string[]>([]);
-  const bannerGradient = ref<string>('');
-
-  const { extractColors, createOverlay } = useColorThief();
-
-  // Computar clases dinámicas para la animación del modal
-  const modalClasses = computed(() => ({
-    'opacity-0 scale-95': !props.show,
-    'opacity-100 scale-100': props.show,
-  }));
-
-  const overlayClasses = computed(() => ({
-    'opacity-0 pointer-events-none': !props.show,
-    'opacity-100 pointer-events-auto': props.show,
-  }));
-
-  // Manejar cambios en los datos
-  const handleInputChange = () => {
-    hasUnsavedChanges.value = true;
-  };
-
-  // Manejar cierre del modal
-  const handleClose = () => {
-    if (hasUnsavedChanges.value && isEditing.value) {
-      showCloseConfirmation.value = true;
-    } else {
-      closeModal();
-    }
-  };
-
-  const closeModal = () => {
-    isEditing.value = false;
-    hasUnsavedChanges.value = false;
-    showCloseConfirmation.value = false;
-    showImageUploader.value = false;
-    bannerColors.value = [];
-    bannerGradient.value = '';
-    emit('close');
-  };
-
-  const cancelClose = () => {
-    showCloseConfirmation.value = false;
-  };
-
-  // Manejar guardado de cambios
-  const handleSave = () => {
-    if (editedInsurer.value) {
-      // Limpiar el objeto contact si todos los campos están vacíos
-      if (
-        editedInsurer.value.contact &&
-        !editedInsurer.value.contact.phone &&
-        !editedInsurer.value.contact.email &&
-        !editedInsurer.value.contact.address
-      ) {
-        delete editedInsurer.value.contact;
-      }
-      emit('save', editedInsurer.value);
-      isEditing.value = false;
-      hasUnsavedChanges.value = false;
-    }
-  };
-
-  // Manejar eliminación de aseguradora
-  const handleDeleteInsurer = (name: string) => {
-    showDeleteConfirmation.value = false;
-    emit('close');
-    emit('delete-insurer', name);
-  };
-
-  // Manejar actualización de imagen
-  const handleImageUpdate = async (data: { url: string; dominantColor: string | null }) => {
-    if (editedInsurer.value) {
-      editedInsurer.value.logo = data.url;
-
-      try {
-        const colors = await extractColors(data.url);
-        bannerColors.value = [colors.dominantColor, ...colors.palette.slice(0, 2)];
-        bannerGradient.value = createOverlay(colors.dominantColor);
-      } catch (error) {
-        console.error('Error al extraer colores:', error);
-      }
-
-      showImageUploader.value = false;
-      handleInputChange();
-    }
-  };
-
-  // Inicializar datos de edición cuando se abre el modal
-  watch(
-    () => props.insurer,
-    async (newValue) => {
-      if (newValue) {
-        // Asegurarse de que contact exista al editar
-        const insurerWithContact = {
-          ...newValue,
-          contact: newValue.contact || {
-            phone: '',
-            email: '',
-            address: '',
-          },
-        };
-        editedInsurer.value = JSON.parse(JSON.stringify(insurerWithContact));
-
-        // Extraer colores del logo inicial
-        if (newValue.logo) {
-          try {
-            const colors = await extractColors(newValue.logo);
-            bannerColors.value = [colors.dominantColor, ...colors.palette.slice(0, 2)];
-            bannerGradient.value = createOverlay(colors.dominantColor);
-          } catch (error) {
-            console.error('Error al extraer colores:', error);
-          }
-        }
-      }
-    },
-    { immediate: true },
-  );
-</script>
-
 <template>
   <!-- Overlay con efecto de desenfoque -->
   <div
@@ -249,8 +77,8 @@
             <img
               v-if="editedInsurer"
               ref="imagePreview"
-              :src="editedInsurer.logo"
-              :alt="editedInsurer.name"
+              :src="editedInsurer.logo as string"
+              :alt="editedInsurer.nombre"
               class="w-full h-full rounded-xl object-cover"
             />
           </div>
@@ -273,12 +101,12 @@
               <div class="flex-1">
                 <input
                   v-if="isEditing"
-                  v-model="editedInsurer.name"
+                  v-model="editedInsurer.nombre"
                   type="text"
                   class="w-full text-2xl font-semibold text-text bg-input-bg border border-input-border rounded-xl px-4 py-2 transition-all duration-300 hover:border-primary/30 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
                   @input="handleInputChange"
                 />
-                <h2 v-else class="text-2xl font-semibold text-text">{{ editedInsurer.name }}</h2>
+                <h2 v-else class="text-2xl font-semibold text-text">{{ editedInsurer.nombre }}</h2>
               </div>
               <div class="flex items-center gap-2">
                 <button
@@ -309,40 +137,12 @@
             <div>
               <textarea
                 v-if="isEditing"
-                v-model="editedInsurer.description"
+                v-model="editedInsurer.descripcion"
                 rows="3"
                 class="w-full text-text bg-input-bg border border-input-border rounded-xl px-4 py-2 resize-none transition-all duration-300 hover:border-primary/30 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10"
                 @input="handleInputChange"
               />
-              <p v-else class="text-text/70">{{ editedInsurer.description }}</p>
-            </div>
-          </div>
-
-          <!-- Estadísticas -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div
-              class="p-4 bg-input-bg rounded-xl border border-input-border transition-all duration-300 hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5"
-            >
-              <div class="flex items-center gap-3 mb-2">
-                <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Users class="w-4 h-4 text-primary" />
-                </div>
-                <h3 class="text-sm font-medium text-text">Clientes Activos</h3>
-              </div>
-              <p class="text-2xl font-semibold text-primary">{{ editedInsurer.stats.clients }}</p>
-            </div>
-            <div
-              class="p-4 bg-input-bg rounded-xl border border-input-border transition-all duration-300 hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5"
-            >
-              <div class="flex items-center gap-3 mb-2">
-                <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Building2 class="w-4 h-4 text-primary" />
-                </div>
-                <h3 class="text-sm font-medium text-text">Servicios</h3>
-              </div>
-              <p class="text-2xl font-semibold text-primary">
-                {{ editedInsurer.services?.length || 0 }}
-              </p>
+              <p v-else class="text-text/70">{{ editedInsurer.descripcion }}</p>
             </div>
           </div>
 
@@ -355,14 +155,14 @@
               >
                 <input
                   v-if="isEditing"
-                  v-model="editedInsurer.contact!.phone"
-                  type="tel"
-                  placeholder="Teléfono"
+                  v-model="editedInsurer.nombre_gestor"
+                  type="text"
+                  placeholder="Nombre"
                   class="flex-1 bg-transparent border-none text-sm text-text focus:outline-none"
                   @input="handleInputChange"
                 />
                 <span v-else class="text-sm text-text">{{
-                  editedInsurer.contact?.phone || 'No disponible'
+                  editedInsurer.nombre_gestor || 'Sin registro'
                 }}</span>
               </div>
               <div
@@ -370,14 +170,14 @@
               >
                 <input
                   v-if="isEditing"
-                  v-model="editedInsurer.contact!.email"
-                  type="email"
-                  placeholder="Email"
+                  v-model="editedInsurer.tel_gestor"
+                  type="tel"
+                  placeholder="Teléfono"
                   class="flex-1 bg-transparent border-none text-sm text-text focus:outline-none"
                   @input="handleInputChange"
                 />
                 <span v-else class="text-sm text-text">{{
-                  editedInsurer.contact?.email || 'No disponible'
+                  editedInsurer.tel_gestor || 'Sin registro'
                 }}</span>
               </div>
             </div>
@@ -386,14 +186,14 @@
             >
               <input
                 v-if="isEditing"
-                v-model="editedInsurer.contact!.address"
-                type="text"
-                placeholder="Dirección"
+                v-model="editedInsurer.correo_gestor"
+                type="email"
+                placeholder="Correo"
                 class="flex-1 bg-transparent border-none text-sm text-text focus:outline-none"
                 @input="handleInputChange"
               />
               <span v-else class="text-sm text-text">{{
-                editedInsurer.contact?.address || 'No disponible'
+                editedInsurer.correo_gestor || 'Sin registro'
               }}</span>
             </div>
           </div>
@@ -447,7 +247,7 @@
         </div>
         <p class="text-text/70">
           ¿Está seguro que desea eliminar la aseguradora
-          <span class="font-medium text-text">{{ editedInsurer?.name }}</span
+          <span class="font-medium text-text">{{ editedInsurer?.nombre }}</span
           >? Esta acción no se puede deshacer.
         </p>
         <div class="flex justify-end gap-3">
@@ -459,7 +259,7 @@
           </button>
           <button
             class="px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-medium border-none transition-all duration-300 hover:bg-red-600 hover:-translate-y-0.5 hover:shadow-lg"
-            @click="handleDeleteInsurer(editedInsurer?.name || '')"
+            @click="handleDeleteInsurer(editedInsurer?.nombre || '')"
           >
             Eliminar
           </button>
@@ -484,7 +284,7 @@
           </button>
         </div>
         <ImageUploader
-          :initial-image="editedInsurer?.logo"
+          :initial-image="editedInsurer?.logo as string"
           :aspect-ratio="1"
           :max-size="5 * 1024 * 1024"
           @update="handleImageUpdate"
@@ -493,6 +293,146 @@
     </div>
   </div>
 </template>
+
+<script setup lang="ts">
+  import { computed, ref, watch } from 'vue';
+  import { X, Edit3, Save, AlertTriangle, Trash2 } from 'lucide-vue-next';
+  import ImageUploader from './ImageUploader.vue';
+  import { useColorThief } from '@/composables/useColorThief';
+
+  interface Insurer {
+    id_aseguradora?: string;
+    id_correduria: string;
+    nombre: string;
+    nombre_gestor: string;
+    tel_gestor: string;
+    correo_gestor: string;
+    logo: string | File;
+    descripcion: string;
+  }
+
+  const props = defineProps<{
+    show: boolean;
+    insurer: Insurer | null;
+  }>();
+
+  const emit = defineEmits<{
+    close: [];
+    save: [insurer: Insurer];
+    'delete-insurer': [name: string];
+  }>();
+
+  // Estado local para edición
+  const isEditing = ref(false);
+  const editedInsurer = ref<Insurer | null>(null);
+  const hasUnsavedChanges = ref(false);
+  const showCloseConfirmation = ref(false);
+  const showDeleteConfirmation = ref(false);
+  const showImageUploader = ref(false);
+  const bannerColors = ref<string[]>([]);
+  const bannerGradient = ref<string>('');
+
+  const { extractColors, createOverlay } = useColorThief();
+
+  // Computar clases dinámicas para la animación del modal
+  const modalClasses = computed(() => ({
+    'opacity-0 scale-95': !props.show,
+    'opacity-100 scale-100': props.show,
+  }));
+
+  const overlayClasses = computed(() => ({
+    'opacity-0 pointer-events-none': !props.show,
+    'opacity-100 pointer-events-auto': props.show,
+  }));
+
+  // Manejar cambios en los datos
+  const handleInputChange = () => {
+    hasUnsavedChanges.value = true;
+  };
+
+  // Manejar cierre del modal
+  const handleClose = () => {
+    if (hasUnsavedChanges.value && isEditing.value) {
+      showCloseConfirmation.value = true;
+    } else {
+      closeModal();
+    }
+  };
+
+  const closeModal = () => {
+    isEditing.value = false;
+    hasUnsavedChanges.value = false;
+    showCloseConfirmation.value = false;
+    showImageUploader.value = false;
+    bannerColors.value = [];
+    bannerGradient.value = '';
+    emit('close');
+  };
+
+  const cancelClose = () => {
+    showCloseConfirmation.value = false;
+  };
+
+  // Manejar guardado de cambios
+  const handleSave = () => {
+    if (editedInsurer.value) {
+      emit('save', editedInsurer.value);
+      isEditing.value = false;
+      hasUnsavedChanges.value = false;
+    }
+  };
+
+  // Manejar eliminación de aseguradora
+  const handleDeleteInsurer = (name: string) => {
+    showDeleteConfirmation.value = false;
+    emit('close');
+    emit('delete-insurer', name);
+  };
+
+  // Manejar actualización de imagen
+  const handleImageUpdate = async (data: { url: string; dominantColor: string | null }) => {
+    if (editedInsurer.value) {
+      editedInsurer.value.logo = data.url;
+
+      try {
+        const colors = await extractColors(data.url);
+        bannerColors.value = [colors.dominantColor, ...colors.palette.slice(0, 2)];
+        bannerGradient.value = createOverlay(colors.dominantColor);
+      } catch (error) {
+        console.error('Error al extraer colores:', error);
+      }
+
+      showImageUploader.value = false;
+      handleInputChange();
+    }
+  };
+
+  // Inicializar datos de edición cuando se abre el modal
+  watch(
+    () => props.insurer,
+    async (newValue) => {
+      if (newValue) {
+        // Asegurarse de que contact exista al editar
+        const insurerWithContact = {
+          ...newValue,
+        };
+        editedInsurer.value = JSON.parse(JSON.stringify(insurerWithContact));
+
+        // Extraer colores del logo inicial
+        if (newValue.logo) {
+          try {
+            const colors = await extractColors(newValue.logo as string);
+            bannerColors.value = [colors.dominantColor, ...colors.palette.slice(0, 2)];
+            bannerGradient.value = createOverlay(colors.dominantColor);
+          } catch (error) {
+            console.error('Error al extraer colores:', error);
+          }
+        }
+      }
+    },
+    { immediate: true },
+  );
+</script>
 
 <style>
   .vue-advanced-cropper {

@@ -5,11 +5,18 @@ export interface Respuesta {
 }
 
 export interface Aseguradora {
-  id_aseguradora: string;
+  id_aseguradora?: string;
   id_correduria: string;
   nombre: string;
   nombre_gestor: string;
   tel_gestor: string;
-  logo: string;
+  correo_gestor: string;
+  logo: string | File;
   descripcion: string;
+}
+
+export interface CreateAseguradoraResponse {
+  ok: boolean;
+  message: string;
+  data: Aseguradora;
 }
