@@ -147,9 +147,10 @@
 
   <ViewInsurerModal
     :show="showViewModal"
-    :insurer="selectedInsurer"
+    :id-aseguradora="selectedInsurer?.id_aseguradora ?? ''"
     @close="showViewModal = false"
     @save="handleSaveInsurer"
+    @delete-insurer="deleteAseguradora"
   />
 </template>
 
@@ -162,14 +163,19 @@
   //Composables y otras funciones
   import { useColorThief } from '@/composables/useColorThief';
   import { useSearch } from '@/composables/useSearch';
-  import { createAseguradoraAction, getAseguradorasAction } from '../actions/aseguradoras_actions';
+  import {
+    createAseguradoraAction,
+    deleteAseguradoraAction,
+    getAseguradorasAction,
+    updateAseguradoraAction,
+  } from '../actions/aseguradoras_actions';
 
   //Types
   import type { Aseguradora } from '../interfaces/aseguradora_interface';
 
   //Components
   import SearchBar from '@/components/SearchBar.vue';
-  import AddInsurerModal from '@/components/AddInsurerModal.vue';
+  import AddInsurerModal from '@/modules/admin/components/AddInsurerModal.vue';
   import ViewInsurerModal from '@/modules/admin/components/ViewInsurerModal.vue';
 
   const toast = useToast();
@@ -185,7 +191,7 @@
   //Obtener el id_correduria del localstorage
   const id_correduria = localStorage.getItem('id_correduria') ?? '';
 
-  //Llamada a la API
+  //Llamada a la API para obtener todas las aseguradoras
   const { data: response } = useQuery({
     queryKey: [{ action: 'aseguradoras' }],
     queryFn: async () => {
@@ -308,7 +314,7 @@
         // Cerrar el modal
         showAddModal.value = false;
 
-        toast.success('Registro agreado exitosamente!');
+        toast.success('Registro agregado exitosamente!');
       } else {
         toast.error('Ocurrió un error al agregar el registro!');
       }
@@ -318,16 +324,68 @@
     }
   };
 
-  //BORRAR ASEGURADORA
+  //ACTIVAR MODAL PARA VER LA ASEGURADORA
   const handleViewInsurer = (insurer: Aseguradora) => {
     selectedInsurer.value = insurer;
     showViewModal.value = true;
   };
 
+  //BORRAR ASEGURADORA
+  const deleteAseguradora = async (id_aseguradora: string) => {
+    try {
+      const resp = await deleteAseguradoraAction(id_aseguradora);
+
+      if (resp.ok) {
+        if (resp.ok) {
+          // ❗ Invalidar la consulta para forzar actualización de datos
+          await queryClient.invalidateQueries({ queryKey: [{ action: 'aseguradoras' }] });
+
+          // Cerrar el modal
+          showViewModal.value = false;
+          selectedInsurer.value = null;
+
+          toast.warning('Registro borrado exitosamente!');
+        } else {
+          toast.error('Ocurrió un error al borrar el registro!');
+        }
+      }
+    } catch (error) {
+      console.error('Error al borrar aseguradora:', error);
+      toast.error('Ocurrió un error al borrar el registro!');
+    }
+  };
+
   //ACTUALIZAR ASEGURADORA
-  const handleSaveInsurer = async (updatedInsurer: Aseguradora) => {
-    //TODO: Llamado a la API para actualizar la aseguradora
-    showViewModal.value = false;
-    selectedInsurer.value = null;
+  const handleSaveInsurer = async (data: FormData) => {
+    const updatedInsurer: Aseguradora = {
+      id_aseguradora: data.get('id_aseguradora') as string,
+      id_correduria,
+      nombre: data.get('nombre') as string,
+      descripcion: data.get('descripcion') as string,
+      nombre_gestor: data.get('nombre_gestor') as string,
+      tel_gestor: data.get('tel_gestor') as string,
+      correo_gestor: data.get('correo_gestor') as string,
+      logo: data.get('logo') as File | string, // Puede ser un archivo o una URL
+    };
+
+    try {
+      // Llamar a la API para crear la aseguradora
+      const resp = await updateAseguradoraAction(updatedInsurer);
+      if (resp.ok) {
+        // ❗ Invalidar la consulta para forzar actualización de datos
+        await queryClient.invalidateQueries({ queryKey: [{ action: 'aseguradoras' }] });
+
+        // Cerrar el modal
+        showViewModal.value = false;
+        selectedInsurer.value = null;
+
+        toast.info('Registro actualizado exitosamente!');
+      } else {
+        toast.error('Ocurrió un error al actualizar el registro!');
+      }
+    } catch (error) {
+      console.error('Error al actualizar aseguradora:', error);
+      toast.error('Ocurrió un error al actualizar el registro!');
+    }
   };
 </script>

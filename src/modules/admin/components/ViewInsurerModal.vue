@@ -76,19 +76,27 @@
           <div class="w-20 h-20 rounded-2xl bg-background p-2 shadow-lg z-10">
             <img
               v-if="editedInsurer"
-              ref="imagePreview"
-              :src="editedInsurer.logo as string"
-              :alt="editedInsurer.nombre"
+              :src="imagePreview || (editedInsurer.logo as string)"
+              :alt="editedInsurer?.nombre"
               class="w-full h-full rounded-xl object-cover"
             />
           </div>
           <button
             v-if="isEditing"
             class="px-4 py-2 rounded-xl bg-black/20 backdrop-blur-sm border border-white/10 text-white text-sm font-medium transition-all duration-300 hover:bg-black/30 hover:-translate-y-0.5 hover:shadow-lg z-10"
-            @click="showImageUploader = true"
+            @click="selectImage"
           >
             Cambiar imagen
           </button>
+
+          <!-- Input de archivo oculto -->
+          <input
+            ref="fileInput"
+            type="file"
+            accept="image/png, image/jpg, image/jpeg, image/bmp, image/tiff, image/gif"
+            class="hidden"
+            @change="handleImageUpload"
+          />
         </div>
       </div>
 
@@ -240,7 +248,7 @@
     >
       <div class="w-full max-w-md bg-background rounded-2xl p-6 space-y-4">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-full bg-red-100">
+          <div class="w-10 h-10 flex items-center justify-center rounded-full bg-red-100">
             <AlertTriangle class="w-5 h-5 text-red-500" />
           </div>
           <h3 class="text-lg font-semibold text-text">Confirmar Eliminación</h3>
@@ -259,7 +267,7 @@
           </button>
           <button
             class="px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-medium border-none transition-all duration-300 hover:bg-red-600 hover:-translate-y-0.5 hover:shadow-lg"
-            @click="handleDeleteInsurer(editedInsurer?.nombre || '')"
+            @click="handleDeleteInsurer(editedInsurer?.id_aseguradora ?? '')"
           >
             Eliminar
           </button>
@@ -283,22 +291,17 @@
             <X class="w-5 h-5" />
           </button>
         </div>
-        <ImageUploader
-          :initial-image="editedInsurer?.logo as string"
-          :aspect-ratio="1"
-          :max-size="5 * 1024 * 1024"
-          @update="handleImageUpdate"
-        />
       </div>
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
+<script lang="ts" setup>
   import { computed, ref, watch } from 'vue';
   import { X, Edit3, Save, AlertTriangle, Trash2 } from 'lucide-vue-next';
-  import ImageUploader from './ImageUploader.vue';
+  //import ImageUploader from './ImageUploader.vue';
   import { useColorThief } from '@/composables/useColorThief';
+  import { getAseguradoraAction } from '../actions/aseguradoras_actions';
 
   interface Insurer {
     id_aseguradora?: string;
@@ -313,12 +316,13 @@
 
   const props = defineProps<{
     show: boolean;
-    insurer: Insurer | null;
+    // insurer: Insurer | null;
+    idAseguradora: string;
   }>();
 
   const emit = defineEmits<{
     close: [];
-    save: [insurer: Insurer];
+    save: [insurer: FormData];
     'delete-insurer': [name: string];
   }>();
 
@@ -331,6 +335,15 @@
   const showImageUploader = ref(false);
   const bannerColors = ref<string[]>([]);
   const bannerGradient = ref<string>('');
+  const fileInput = ref<HTMLInputElement | null>(null);
+  const imagePreview = ref<string | null>(null);
+
+  // Función para abrir el selector de archivos
+  const selectImage = () => {
+    if (fileInput.value) {
+      fileInput.value.click();
+    }
+  };
 
   const { extractColors, createOverlay } = useColorThief();
 
@@ -375,53 +388,89 @@
 
   // Manejar guardado de cambios
   const handleSave = () => {
+    const formData = new FormData();
     if (editedInsurer.value) {
-      emit('save', editedInsurer.value);
+      // Agregar id_aseguradora solo si existe
+      if (editedInsurer.value.id_aseguradora) {
+        formData.append('id_aseguradora', editedInsurer.value.id_aseguradora);
+      }
+
+      formData.append('nombre', editedInsurer.value.nombre);
+      formData.append('descripcion', editedInsurer.value.descripcion);
+      formData.append('nombre_gestor', editedInsurer.value.nombre_gestor);
+      formData.append('tel_gestor', editedInsurer.value.tel_gestor);
+      formData.append('correo_gestor', editedInsurer.value.correo_gestor);
+
+      // Agregar la imagen si fue cambiada
+      if (editedInsurer.value.logo instanceof File) {
+        formData.append('logo', editedInsurer.value.logo);
+      }
+    }
+
+    if (editedInsurer.value) {
+      emit('save', formData);
       isEditing.value = false;
+      editedInsurer.value = null;
       hasUnsavedChanges.value = false;
     }
   };
 
   // Manejar eliminación de aseguradora
-  const handleDeleteInsurer = (name: string) => {
+  const handleDeleteInsurer = (idAseguradora: string) => {
     showDeleteConfirmation.value = false;
     emit('close');
-    emit('delete-insurer', name);
+    emit('delete-insurer', idAseguradora);
   };
 
-  // Manejar actualización de imagen
-  const handleImageUpdate = async (data: { url: string; dominantColor: string | null }) => {
-    if (editedInsurer.value) {
-      editedInsurer.value.logo = data.url;
+  // Función para manejar la carga de la imagen
+  const handleImageUpload = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    if (target.files && target.files[0]) {
+      const file = target.files[0];
+      const acceptedFormats = [
+        'image/png',
+        'image/jpg',
+        'image/jpeg',
+        'image/bmp',
+        'image/tiff',
+        'image/gif',
+      ];
 
-      try {
-        const colors = await extractColors(data.url);
-        bannerColors.value = [colors.dominantColor, ...colors.palette.slice(0, 2)];
-        bannerGradient.value = createOverlay(colors.dominantColor);
-      } catch (error) {
-        console.error('Error al extraer colores:', error);
+      if (!acceptedFormats.includes(file.type)) {
+        alert('Formato de imagen no permitido. Usa PNG, JPG, JPEG, BMP, TIFF o GIF.');
+        return;
       }
 
-      showImageUploader.value = false;
-      handleInputChange();
+      // Guardar el archivo en `editedInsurer.logo`
+      if (editedInsurer.value) {
+        editedInsurer.value.logo = file;
+      }
+
+      // Crear una vista previa de la imagen
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target) {
+          imagePreview.value = e.target.result as string;
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   // Inicializar datos de edición cuando se abre el modal
   watch(
-    () => props.insurer,
-    async (newValue) => {
-      if (newValue) {
-        // Asegurarse de que contact exista al editar
-        const insurerWithContact = {
-          ...newValue,
-        };
-        editedInsurer.value = JSON.parse(JSON.stringify(insurerWithContact));
+    () => props.idAseguradora,
+    async (idAseguradora: string) => {
+      //Llamado a la API para obtener los datos de la aseguradora
+      const resp = await getAseguradoraAction(idAseguradora);
 
-        // Extraer colores del logo inicial
-        if (newValue.logo) {
+      if (resp.data) {
+        editedInsurer.value = JSON.parse(JSON.stringify(resp.data));
+
+        // Extraer colores del logo inicial (si está definido)
+        if (resp.data.logo as string) {
           try {
-            const colors = await extractColors(newValue.logo as string);
+            const colors = await extractColors(resp.data.logo as string);
             bannerColors.value = [colors.dominantColor, ...colors.palette.slice(0, 2)];
             bannerGradient.value = createOverlay(colors.dominantColor);
           } catch (error) {
@@ -430,7 +479,6 @@
         }
       }
     },
-    { immediate: true },
   );
 </script>
 

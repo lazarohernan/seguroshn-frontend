@@ -1,7 +1,7 @@
 export interface Respuesta {
   message: string;
   totalRegistros: number;
-  data: Aseguradora[];
+  data: Poliza[];
 }
 
 export interface DeleteResponse {
@@ -12,22 +12,20 @@ export interface DeleteResponse {
 
 export interface RespuestaSimple {
   message: string;
-  data: Aseguradora;
+  data: Poliza;
 }
 
-export interface Aseguradora {
-  id_aseguradora?: string;
+export interface Poliza {
+  id_poliza?: string;
   id_correduria: string;
   nombre: string;
-  nombre_gestor: string;
-  tel_gestor: string;
-  correo_gestor: string;
-  logo: string | File;
   descripcion: string;
+  archivo_poliza: string | File;
+  id_aseguradora: string;
 }
 
-export interface CreateAseguradoraResponse {
+export interface CreatePolizaResponse {
   ok: boolean;
   message: string;
-  data: Aseguradora;
+  data: Poliza;
 }
