@@ -43,15 +43,11 @@ export const createAseguradoraAction = async (aseguradora: Partial<Aseguradora>)
       formData.append('logo', aseguradora.logo); // Solo si es un archivo
     }
 
-    const { data } = await api.post<CreateAseguradoraResponse>(
-      `/aseguradoras/?id_correduria=${aseguradora.id_correduria}`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data', //Necesaria para adjuntar archivos
-        },
+    const { data } = await api.post<CreateAseguradoraResponse>(`/aseguradoras/`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data', //Necesaria para adjuntar archivos
       },
-    );
+    });
 
     if (data.ok) {
       return data;

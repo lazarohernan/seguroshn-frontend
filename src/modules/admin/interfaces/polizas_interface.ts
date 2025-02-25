@@ -22,6 +22,7 @@ export interface Poliza {
   descripcion: string;
   archivo_poliza: string | File;
   id_aseguradora: string;
+  nombre_aseguradora?: string;
 }
 
 export interface CreatePolizaResponse {

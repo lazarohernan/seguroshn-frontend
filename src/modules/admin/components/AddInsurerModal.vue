@@ -270,7 +270,7 @@
       }
 
       emit('save', formData);
-      //resetForm();
+      resetForm();
     }
   };
 
