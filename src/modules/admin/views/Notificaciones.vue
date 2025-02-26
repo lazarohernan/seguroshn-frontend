@@ -191,7 +191,7 @@
 <script setup lang="ts">
   import { ref, computed, watch } from 'vue';
   import { Bell, Search, Filter, CheckCheck, X } from 'lucide-vue-next';
-  import SearchBar from '@/components/SearchBar.vue';
+  import SearchBar from '@/modules/common/components/SearchBar.vue';
   import { useSearch } from '@/composables/useSearch';
   import type { Notification, NotificationType } from '@/types';
 

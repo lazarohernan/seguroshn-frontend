@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import Footer from './components/Footer.vue'
-import { useNetworkStatus } from './composables/useNetworkStatus'
+  import Footer from './modules/common/components/Footer.vue';
+  import { useNetworkStatus } from './composables/useNetworkStatus';
 
-// Inicializar la detección de estado de red
-useNetworkStatus()
+  // Inicializar la detección de estado de red
+  useNetworkStatus();
 </script>
 
 <template>
@@ -16,14 +16,14 @@ useNetworkStatus()
 </template>
 
 <style>
-.app-container {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
+  .app-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
 
-.main-content {
-  flex: 1;
-  width: 100%;
-}
+  .main-content {
+    flex: 1;
+    width: 100%;
+  }
 </style>

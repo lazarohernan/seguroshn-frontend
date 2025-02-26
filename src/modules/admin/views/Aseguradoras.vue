@@ -174,7 +174,7 @@
   import type { Aseguradora } from '../interfaces/aseguradora_interface';
 
   //Components
-  import SearchBar from '@/components/SearchBar.vue';
+  import SearchBar from '@/modules/common/components/SearchBar.vue';
   import AddInsurerModal from '@/modules/admin/components/AddInsurerModal.vue';
   import ViewInsurerModal from '@/modules/admin/components/ViewInsurerModal.vue';
 

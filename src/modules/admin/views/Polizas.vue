@@ -123,7 +123,7 @@
 
   import AddPolicyModal from '@/components/AddPolicyModal.vue';
   import ViewPolicyModal from '@/modules/admin/components/ViewPolicyModal.vue';
-  import SearchBar from '@/components/SearchBar.vue';
+  import SearchBar from '@/modules/common/components/SearchBar.vue';
 
   const toast = useToast();
   //Obtener una instancia del queryClient
