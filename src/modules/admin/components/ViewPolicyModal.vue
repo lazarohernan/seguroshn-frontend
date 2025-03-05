@@ -103,6 +103,7 @@
                     v-model="editedPolicy!.id_aseguradora"
                     class="w-full py-3.5 pl-4 pr-10 rounded-xl border border-input-border bg-background text-text text-sm transition-all duration-300 hover:border-primary focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 appearance-none bg-[url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22currentColor%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[length:16px] bg-[center_right_1rem]"
                     required
+                    @change="checkChanges"
                   >
                     <option :value="editedPolicy?.id_aseguradora" hidden selected>
                       {{ editedPolicy?.nombre_aseguradora }}
@@ -129,6 +130,7 @@
                     class="w-full py-3.5 px-4 rounded-xl border border-input-border bg-background text-text text-sm transition-all duration-300 hover:border-primary focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                     placeholder="Ingrese el nombre de la póliza"
                     required
+                    @input="checkChanges"
                   />
                 </div>
 
@@ -163,6 +165,7 @@
                     placeholder="Ingrese una descripción detallada de la póliza"
                     rows="4"
                     required
+                    @input="checkChanges"
                   ></textarea>
                 </div>
               </div>
@@ -192,7 +195,7 @@
             <button
               type="button"
               class="px-7 py-3.5 rounded-xl text-sm font-medium border border-input-border text-text transition-all duration-300 hover:bg-input-bg hover:border-primary sm:w-full bg-gray-200 hover:text-gray-500 text-black dark:bg-transparent dark:text-text dark:hover:bg-input-bg"
-              @click="editMode = false"
+              @click="cancelEdit"
             >
               Cancelar
             </button>
@@ -234,6 +237,42 @@
             </div>
           </div>
         </div>
+
+        <!-- Modal de confirmación para cerrar con cambios sin guardar -->
+        <div
+          v-if="showCloseConfirm"
+          class="fixed inset-0 bg-black/50 backdrop-blur-md flex items-center justify-center z-[1200] p-6"
+          @click="showCloseConfirm = false"
+        >
+          <div
+            class="w-full max-w-[400px] bg-background rounded-2xl border border-container-border shadow-[0_8px_32px_var(--container-shadow)] p-6 sm:p-5"
+            @click.stop
+          >
+            <div class="flex items-center gap-3 mb-4">
+              <div class="p-2 rounded-xl bg-amber-100">
+                <AlertTriangle class="w-6 h-6 text-amber-500" />
+              </div>
+              <h3 class="text-xl font-semibold text-text">Confirmar Salida</h3>
+            </div>
+            <p class="text-sm text-text/70 mb-6">
+              Hay cambios sin guardar. ¿Está seguro que desea salir? Los cambios se perderán.
+            </p>
+            <div class="flex justify-end gap-3">
+              <button
+                class="px-4 py-2 rounded-xl bg-input-bg border border-input-border text-sm font-medium text-text transition-all duration-300 hover:border-primary hover:text-white hover:-translate-y-0.5"
+                @click="showCloseConfirm = false"
+              >
+                Cancelar
+              </button>
+              <button
+                class="px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-medium border-none transition-all duration-300 hover:bg-amber-600 hover:-translate-y-0.5 hover:shadow-lg"
+                @click="confirmClose"
+              >
+                Salir sin Guardar
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </Teleport>
@@ -241,7 +280,7 @@
 
 <script setup lang="ts">
   import { onMounted, ref, watch } from 'vue';
-  import { X, Building2, Edit2, Trash2 } from 'lucide-vue-next';
+  import { X, Building2, Edit2, Trash2, AlertTriangle } from 'lucide-vue-next';
   import { Poliza } from '@/modules/admin/interfaces/polizas_interface';
   import { getPolizaAction } from '../actions/polizas_actions';
   import { Aseguradora } from '../interfaces/aseguradora_interface';
@@ -261,6 +300,8 @@
 
   const editMode = ref(false);
   const showDeleteConfirm = ref(false);
+  const showCloseConfirm = ref(false);
+  const hasChanges = ref(false);
   const archivoPoliza = ref<File | undefined>();
   //Validación de los tipos de archivo en póliza
   const fileError = ref('');
@@ -281,7 +322,7 @@
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     ];
 
-    const maxSize = 8 * 1024 * 1024; // 10MB en bytes
+    const maxSize = 8 * 1024 * 1024; // 8MB en bytes
 
     if (file) {
       if (!allowedTypes.includes(file.type)) {
@@ -293,13 +334,43 @@
       } else {
         fileError.value = '';
         archivoPoliza.value = file;
+        hasChanges.value = true; // Marcar que hay cambios cuando se selecciona un archivo
       }
     }
+  };
+
+  // Función para verificar si hay cambios
+  const checkChanges = () => {
+    if (!editedPolicy.value || !originalPolicy.value) return;
+
+    const original = JSON.stringify({
+      nombre: originalPolicy.value.nombre,
+      descripcion: originalPolicy.value.descripcion,
+      id_aseguradora: originalPolicy.value.id_aseguradora,
+    });
+
+    const current = JSON.stringify({
+      nombre: editedPolicy.value.nombre,
+      descripcion: editedPolicy.value.descripcion,
+      id_aseguradora: editedPolicy.value.id_aseguradora,
+    });
+
+    hasChanges.value = original !== current || archivoPoliza.value !== undefined;
   };
 
   const handleEdit = () => {
     editMode.value = true;
     editedPolicy.value = { ...props.policy };
+    originalPolicy.value = JSON.parse(JSON.stringify(props.policy));
+    hasChanges.value = false;
+  };
+
+  const cancelEdit = () => {
+    if (hasChanges.value) {
+      showCloseConfirm.value = true;
+    } else {
+      editMode.value = false;
+    }
   };
 
   //Actualizar Póliza
@@ -321,6 +392,8 @@
       emit('edit', formData);
       editMode.value = false;
       editedPolicy.value = undefined;
+      hasChanges.value = false;
+      archivoPoliza.value = undefined;
     }
   };
 
@@ -339,8 +412,19 @@
   };
 
   const handleClose = () => {
+    if (editMode.value && hasChanges.value) {
+      showCloseConfirm.value = true;
+    } else {
+      confirmClose();
+    }
+  };
+
+  const confirmClose = () => {
     editMode.value = false;
     showDeleteConfirm.value = false;
+    showCloseConfirm.value = false;
+    hasChanges.value = false;
+    archivoPoliza.value = undefined;
     emit('close');
   };
 
@@ -357,7 +441,7 @@
     },
   );
 
-  //Cargar las aseguradoras al estar montado
+  //Cargar la aseguradora al estar montado
   onMounted(async () => {
     try {
       const response = await getAseguradorasAction(id_correduria);

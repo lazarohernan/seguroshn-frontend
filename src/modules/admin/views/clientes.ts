@@ -1,13 +1,11 @@
-import { defineComponent } from 'vue';
-import { ref } from 'vue';
+import { computed, defineComponent, defineAsyncComponent, ref, watch } from 'vue';
+import { usePagination } from '@/modules/admin/composables/usePagination';
 import SearchBar from '@/modules/common/components/SearchBar.vue';
+import PaginationButtons from '@/modules/common/components/PaginationButtons.vue';
 import { useSearch } from '@/composables/useSearch';
 import { useExport } from '@/composables/useExport';
-import ViewClientModal from '@/components/ViewClientModal.vue';
-import AddClientModal from '@/components/AddClientModal.vue';
-import ViewClientPaymentsModal from '@/components/ViewClientPaymentsModal.vue';
-import ViewClientPolicyModal from '@/components/ViewClientPolicyModal.vue';
-import ExportOptionsModal from '@/components/ExportOptionsModal.vue';
+import ViewClientPaymentsModal from '@/modules/admin/components/ViewClientPaymentsModal.vue';
+import ViewClientPolicyModal from '@/modules/admin/components/ViewClientPolicyModal.vue';
 import {
   Plus,
   Mail,
@@ -20,8 +18,29 @@ import {
   Users,
   Search,
 } from 'lucide-vue-next';
-
 import type { Client } from '@/types/client';
+import { useQueryClient } from '@tanstack/vue-query';
+import {
+  createClienteAction,
+  deleteClienteAction,
+  getClientesAction,
+  updateClienteAction,
+} from '../actions/clientes_actions';
+import { Cliente } from '../interfaces/cliente_interface';
+import { useToast } from 'vue-toastification';
+
+// Lazy load modals
+const ViewClientModal = defineAsyncComponent(
+  () => import('@/modules/admin/components/ViewClientModal.vue'),
+);
+const AddClientModal = defineAsyncComponent(
+  () => import('@/modules/admin/components/AddClientModal.vue'),
+);
+// const ViewClientPaymentsModal = defineAsyncComponent(() => import('@/modules/admin/components/ViewClientPaymentsModal.vue'));
+// const ViewClientPolicyModal = defineAsyncComponent(() => import('@/modules/admin/components/ViewClientPolicyModal.vue'));
+const ExportOptionsModal = defineAsyncComponent(
+  () => import('@/components/ExportOptionsModal.vue'),
+);
 
 // Interfaz para las pólizas de clientes
 interface Policy {
@@ -40,6 +59,7 @@ export default defineComponent({
     ViewClientPaymentsModal,
     ViewClientPolicyModal,
     ExportOptionsModal,
+    PaginationButtons,
     Plus,
     Mail,
     Phone,
@@ -52,60 +72,9 @@ export default defineComponent({
     Search,
   },
   setup() {
-    // Datos de ejemplo de clientes
-    const clients = ref<Client[]>([
-      {
-        id: 1,
-        name: 'Juan Pérez',
-        dni: '0801-1990-12345',
-        rtn: '08011990123459',
-        birthDate: '1990-05-15',
-        email: 'juan.perez@email.com',
-        phone: '+504 9876-5432',
-        alternativePhone: '+504 9876-5433',
-        address: 'Col. Palmira, Tegucigalpa',
-        insuranceCount: 3,
-        status: 'active',
-        lastUpdate: '2024-02-15',
-      },
-      {
-        id: 2,
-        name: 'María López',
-        dni: '0501-1985-67890',
-        rtn: '05011985678904',
-        birthDate: '1985-08-22',
-        email: 'maria.lopez@email.com',
-        phone: '+504 8765-4321',
-        alternativePhone: '+504 8765-4322',
-        address: 'Res. El Trapiche, San Pedro Sula',
-        insuranceCount: 2,
-        status: 'active',
-        lastUpdate: '2024-02-14',
-      },
-      {
-        id: 3,
-        name: 'Carlos Mendoza',
-        dni: '0101-1995-54321',
-        rtn: '01011995543215',
-        birthDate: '1995-03-10',
-        email: 'carlos.mendoza@email.com',
-        phone: '+504 9988-7766',
-        alternativePhone: '+504 9988-7767',
-        address: 'Bo. El Centro, La Ceiba',
-        insuranceCount: 1,
-        status: 'inactive',
-        lastUpdate: '2024-02-10',
-      },
-    ]);
-
-    // Composables para funcionalidades específicas
-    const { searchQuery, filteredItems } = useSearch<Client>(clients.value, [
-      'name',
-      'dni',
-      'phone',
-      'email',
-    ]);
-    const { exportToCSV, exportToPDF } = useExport();
+    const toast = useToast();
+    //Obtener una instancia del queryClient
+    const queryClient = useQueryClient();
 
     // Estados para control de modales
     const showClientModal = ref(false);
@@ -113,33 +82,97 @@ export default defineComponent({
     const showPaymentsModal = ref(false);
     const showPolicyModal = ref(false);
     const showExportModal = ref(false);
-    const selectedClient = ref<Client | null>(null);
+    const selectedClient = ref<Cliente | null>(null);
     const selectedPolicy = ref<Policy | null>(null);
+    //Obtener el id_correduria del localstorage
+    const id_correduria = localStorage.getItem('id_correduria') ?? '';
+    const isLoading = ref(false);
+    // Configuración de paginación
+    const { page } = usePagination();
+    const itemsPerPage = ref(10);
+    const totalPages = ref(1);
+    const clientes = ref<Cliente[]>([]);
 
-    // Datos de ejemplo de pólizas
-    const clientPolicies = ref<Policy[]>([
-      {
-        id: 1,
-        number: '001',
-        name: 'Seguro de Vida Plus',
-        term: 12,
-        status: 'vigente',
-      },
-      {
-        id: 2,
-        number: '002',
-        name: 'Seguro de Auto Completo',
-        term: 24,
-        status: 'vigente',
-      },
-      {
-        id: 3,
-        number: '003',
-        name: 'Seguro de Hogar Básico',
-        term: 6,
-        status: 'vencida',
-      },
+    // Cargar datos desde la API
+    const loadClientes = async () => {
+      isLoading.value = true;
+      try {
+        const response = await getClientesAction(id_correduria, page.value, itemsPerPage.value);
+        clientes.value = response.data;
+        totalPages.value = response.totalPaginas;
+      } catch (error) {
+        console.error('Error al cargar clientes:', error);
+        // En caso de error, mostrar lista vacía
+        clientes.value = [];
+        totalPages.value = 1;
+      } finally {
+        isLoading.value = false;
+      }
+    };
+
+    // Cargar datos iniciales
+    loadClientes();
+
+    // Recargar cuando cambie la página
+    watch(page, () => {
+      loadClientes();
+      // Scroll hacia arriba
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // Prefetch de la siguiente página
+    const prefetchNextPage = async () => {
+      const nextPage = page.value + 1;
+      if (nextPage <= totalPages.value) {
+        try {
+          await getClientesAction(id_correduria, nextPage, itemsPerPage.value);
+        } catch (error) {
+          console.warn('Error al precargar la siguiente página:', error);
+        }
+      }
+    };
+
+    // Precargar la siguiente página después de cargar la actual
+    watch(isLoading, (loading) => {
+      if (!loading) {
+        prefetchNextPage();
+      }
+    });
+
+    // Composables para funcionalidades específicas
+    const { searchQuery, filteredItems } = useSearch<Cliente>(clientes, [
+      'nombres',
+      'identificacion',
+      'apellidos',
+      'tel_1',
+      'correo',
     ]);
+    const { exportToCSV, exportToPDF } = useExport();
+
+    // Calcular elementos paginados (para búsqueda local)
+    const paginatedItems = computed(() => {
+      // Si hay una búsqueda activa, paginar los resultados filtrados localmente
+      if (searchQuery.value) {
+        const startIndex = (page.value - 1) * itemsPerPage.value;
+        const endIndex = startIndex + itemsPerPage.value;
+        return filteredItems.value.slice(startIndex, endIndex);
+      }
+      // Si no hay búsqueda, usar los datos ya paginados desde la API
+      return filteredItems.value;
+    });
+
+    // Calcular si es la primera página
+    const isFirstPage = computed(() => page.value <= 1);
+
+    // Calcular si hay más páginas
+    const hasMorePages = computed(() => {
+      if (searchQuery.value) {
+        // Si hay búsqueda, calcular basado en resultados filtrados
+        return page.value >= Math.ceil(filteredItems.value.length / itemsPerPage.value);
+      }
+      // Si no hay búsqueda, usar totalPages de la API
+      return page.value >= totalPages.value;
+    });
 
     /**
      * Obtiene las iniciales de un nombre completo
@@ -158,8 +191,8 @@ export default defineComponent({
     /**
      * Maneja la visualización del modal de detalles del cliente
      */
-    const handleViewClient = (clientId: number): void => {
-      selectedClient.value = clients.value.find((c) => c.id === clientId) || null;
+    const handleViewClient = (clientId: string): void => {
+      selectedClient.value = clientes.value.find((c) => c.id_cliente === clientId) || null;
       showClientModal.value = true;
     };
 
@@ -174,8 +207,8 @@ export default defineComponent({
     /**
      * Maneja la visualización del modal de pólizas del cliente
      */
-    const handleViewPolicies = (clientId: number): void => {
-      selectedClient.value = clients.value.find((c) => c.id === clientId) || null;
+    const handleViewPolicies = (clientId: string): void => {
+      selectedClient.value = clientes.value.find((c) => c.id_cliente === clientId) || null;
       if (selectedClient.value) {
         showPolicyModal.value = true;
       }
@@ -184,63 +217,73 @@ export default defineComponent({
     /**
      * Actualiza los datos de un cliente existente
      */
-    const handleUpdateClient = (data: Client): void => {
-      const index = clients.value.findIndex((c) => c.id === data.id);
-      if (index !== -1) {
-        clients.value[index] = {
-          id: data.id,
-          name: data.name,
-          dni: data.dni,
-          rtn: data.rtn,
-          birthDate: data.birthDate,
-          email: data.email,
-          company: data.company,
-          phone: data.phone,
-          alternativePhone: data.alternativePhone,
-          address: data.address,
-          insuranceCount: data.insuranceCount,
-          status: data.status,
-          lastUpdate: new Date().toISOString().split('T')[0],
-        };
+    const handleUpdateClient = async (data: FormData): Promise<void> => {
+      try {
+        // Llamar a la API para actualizar el cliente
+        const resp = await updateClienteAction(data);
+        if (resp.ok) {
+          // ❗ Invalidar la consulta para forzar actualización de datos
+          await queryClient.invalidateQueries({ queryKey: [{ action: 'clientes' }] });
+
+          // Cerrar el modal
+          handleCloseModal();
+
+          toast.success('Cliente actualizado exitosamente!');
+        } else {
+          toast.error('Ocurrió un error al actualizar el cliente!');
+        }
+      } catch (error) {
+        console.error('Error al actualizar cliente:', error);
+        toast.error('Ocurrió un error al actualizar el cliente!');
       }
-      handleCloseModal();
     };
 
-    // Interfaz para los datos del formulario de nuevo cliente
-    interface AddClientData {
-      firstName: string;
-      lastName: string;
-      dni: string;
-      rtn?: string;
-      birthDate?: string;
-      email: string;
-      company?: string;
-      phone?: string;
-      alternativePhone?: string;
-      address?: string;
-    }
+    /**
+     * Elimina un cliente existente
+     */
+    const handleDeleteClient = async (clientId: string): Promise<void> => {
+      try {
+        // Llamar a la API para eliminar el cliente
+        const resp = await deleteClienteAction(clientId);
+        if (resp.ok) {
+          // ❗ Invalidar la consulta para forzar actualización de datos
+          await queryClient.invalidateQueries({ queryKey: [{ action: 'clientes' }] });
+
+          // Cerrar el modal
+          handleCloseModal();
+
+          toast.success('Cliente eliminado exitosamente!');
+        } else {
+          toast.error('Ocurrió un error al eliminar el cliente!');
+        }
+      } catch (error) {
+        console.error('Error al eliminar cliente:', error);
+        toast.error('Ocurrió un error al eliminar el cliente!');
+      }
+    };
 
     /**
      * Agrega un nuevo cliente a la lista
      */
-    const handleAddClient = async (data: AddClientData): Promise<void> => {
-      const newClient: Client = {
-        id: clients.value.length + 1,
-        name: `${data.firstName} ${data.lastName}`,
-        dni: data.dni,
-        rtn: data.rtn || '',
-        birthDate: data.birthDate || '',
-        email: data.email,
-        company: data.company,
-        phone: data.phone || '',
-        alternativePhone: data.alternativePhone,
-        address: data.address || '',
-        insuranceCount: 0,
-        status: 'active',
-        lastUpdate: new Date().toISOString().split('T')[0],
-      };
-      clients.value.push(newClient);
-      showAddModal.value = false;
+    const handleAddClient = async (data: FormData): Promise<void> => {
+      try {
+        // Llamar a la API para crear la aseguradora
+        const resp = await createClienteAction(data);
+        if (resp.ok) {
+          // ❗ Invalidar la consulta para forzar actualización de datos
+          await queryClient.invalidateQueries({ queryKey: [{ action: 'clientes' }] });
+
+          // Cerrar el modal
+          showAddModal.value = false;
+
+          toast.success('Registro agregado exitosamente!');
+        } else {
+          toast.error('Ocurrió un error al agregar el registro!');
+        }
+      } catch (error) {
+        console.error('Error al agregar cliente:', error);
+        toast.error('Ocurrió un error al agregar el registro!');
+      }
     };
 
     const handleExport = (format: 'pdf' | 'csv', data: Client[]) => {
@@ -268,9 +311,24 @@ export default defineComponent({
       }
     };
 
+    /**
+     * Maneja el cambio en el número de elementos por página
+     */
+    const handleItemsPerPageChange = (newValue: number) => {
+      // Actualizar el valor de itemsPerPage
+      itemsPerPage.value = newValue;
+
+      // Resetear a la página 1 cuando cambie el número de elementos por página
+      if (page.value !== 1) {
+        page.value = 1;
+      } else {
+        // Si ya estamos en la página 1, forzar la recarga
+        loadClientes();
+      }
+    };
+
     return {
       //Properties
-      clients,
       searchQuery,
       filteredItems,
       showClientModal,
@@ -280,7 +338,14 @@ export default defineComponent({
       showExportModal,
       selectedClient,
       selectedPolicy,
-      clientPolicies,
+      clientes,
+      isLoading,
+      page,
+      itemsPerPage,
+      totalPages,
+      paginatedItems,
+      isFirstPage,
+      hasMorePages,
 
       //Actions
       getInitials,
@@ -290,6 +355,17 @@ export default defineComponent({
       handleUpdateClient,
       handleAddClient,
       handleExport,
+      handleDeleteClient,
+      prefetchNextPage,
+      handleItemsPerPageChange,
     };
+  },
+
+  methods: {
+    getImageSrc(foto: string | File | undefined): string {
+      if (!foto) return ''; // Si no hay foto, devuelve una cadena vacía
+      if (typeof foto === 'string') return foto; // Si ya es una URL, úsala directamente
+      return URL.createObjectURL(foto); // Si es un File, crea una URL temporal
+    },
   },
 });

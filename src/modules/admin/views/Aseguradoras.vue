@@ -357,20 +357,11 @@
 
   //ACTUALIZAR ASEGURADORA
   const handleSaveInsurer = async (data: FormData) => {
-    const updatedInsurer: Aseguradora = {
-      id_aseguradora: data.get('id_aseguradora') as string,
-      id_correduria,
-      nombre: data.get('nombre') as string,
-      descripcion: data.get('descripcion') as string,
-      nombre_gestor: data.get('nombre_gestor') as string,
-      tel_gestor: data.get('tel_gestor') as string,
-      correo_gestor: data.get('correo_gestor') as string,
-      logo: data.get('logo') as File | string, // Puede ser un archivo o una URL
-    };
+    data.append('id_correduria', id_correduria);
 
     try {
       // Llamar a la API para crear la aseguradora
-      const resp = await updateAseguradoraAction(updatedInsurer);
+      const resp = await updateAseguradoraAction(data);
       if (resp.ok) {
         // ❗ Invalidar la consulta para forzar actualización de datos
         await queryClient.invalidateQueries({ queryKey: [{ action: 'aseguradoras' }] });

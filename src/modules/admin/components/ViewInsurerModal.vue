@@ -135,7 +135,7 @@
                 <button
                   v-else
                   class="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium transition-all duration-300 hover:bg-primary-hover hover:-translate-y-0.5 hover:shadow-lg"
-                  @click="isEditing = true"
+                  @click="handleEdit"
                 >
                   <Edit3 class="w-4 h-4" />
                   <span>Editar</span>
@@ -217,7 +217,7 @@
     >
       <div class="w-full max-w-md bg-background rounded-2xl p-6 space-y-4">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-full bg-amber-100">
+          <div class="w-10 h-10 flex items-center justify-center rounded-full bg-red-100">
             <AlertTriangle class="w-5 h-5 text-amber-500" />
           </div>
           <h3 class="text-lg font-semibold text-text">¿Descartar cambios?</h3>
@@ -299,24 +299,12 @@
 <script lang="ts" setup>
   import { computed, ref, watch } from 'vue';
   import { X, Edit3, Save, AlertTriangle, Trash2 } from 'lucide-vue-next';
-  //import ImageUploader from './ImageUploader.vue';
   import { useColorThief } from '@/composables/useColorThief';
   import { getAseguradoraAction } from '../actions/aseguradoras_actions';
-
-  interface Insurer {
-    id_aseguradora?: string;
-    id_correduria: string;
-    nombre: string;
-    nombre_gestor: string;
-    tel_gestor: string;
-    correo_gestor: string;
-    logo: string | File;
-    descripcion: string;
-  }
+  import { Aseguradora } from '../interfaces/aseguradora_interface';
 
   const props = defineProps<{
     show: boolean;
-    // insurer: Insurer | null;
     idAseguradora: string;
   }>();
 
@@ -328,7 +316,7 @@
 
   // Estado local para edición
   const isEditing = ref(false);
-  const editedInsurer = ref<Insurer | null>(null);
+  const editedInsurer = ref<Aseguradora | null>(null);
   const hasUnsavedChanges = ref(false);
   const showCloseConfirmation = ref(false);
   const showDeleteConfirmation = ref(false);
@@ -372,6 +360,10 @@
     }
   };
 
+  const handleEdit = () => {
+    isEditing.value = !isEditing.value;
+  };
+
   const closeModal = () => {
     isEditing.value = false;
     hasUnsavedChanges.value = false;
@@ -383,7 +375,9 @@
   };
 
   const cancelClose = () => {
-    showCloseConfirmation.value = false;
+    setTimeout(() => {
+      showCloseConfirmation.value = false;
+    }, 10);
   };
 
   // Manejar guardado de cambios

@@ -121,7 +121,7 @@
     updatePolizaAction,
   } from '../actions/polizas_actions';
 
-  import AddPolicyModal from '@/components/AddPolicyModal.vue';
+  import AddPolicyModal from '@/modules/admin/components/AddPolicyModal.vue';
   import ViewPolicyModal from '@/modules/admin/components/ViewPolicyModal.vue';
   import SearchBar from '@/modules/common/components/SearchBar.vue';
 

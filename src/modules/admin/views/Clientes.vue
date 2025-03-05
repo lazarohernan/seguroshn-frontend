@@ -10,7 +10,7 @@
             <div class="w-[600px]">
               <SearchBar
                 v-model="searchQuery"
-                placeholder="Buscar por nombre completo, DNI, teléfono o correo electrónico..."
+                placeholder="Buscar por nombre, identificación, teléfono o correo electrónico..."
               />
             </div>
             <button
@@ -34,7 +34,7 @@
 
       <!-- Estado sin clientes -->
       <div
-        v-if="clients.length === 0"
+        v-if="clientes.length === 0"
         class="bg-container-bg border border-container-border rounded-2xl shadow-[0_8px_32px_var(--container-shadow)] p-12"
       >
         <div class="flex flex-col items-center justify-center gap-4">
@@ -71,6 +71,19 @@
         v-else
         class="bg-container-bg border border-container-border rounded-2xl shadow-[0_8px_32px_var(--container-shadow)] overflow-x-auto"
       >
+        <!-- Indicador de carga -->
+        <div
+          v-if="isLoading"
+          class="absolute inset-0 bg-white/50 dark:bg-black/50 flex items-center justify-center z-10"
+        >
+          <div class="flex flex-col items-center gap-2">
+            <div
+              class="animate-spin rounded-full h-10 w-10 border-4 border-primary border-t-transparent"
+            ></div>
+            <span class="text-sm font-medium text-text/70">Cargando datos...</span>
+          </div>
+        </div>
+
         <table class="w-full border-collapse text-sm">
           <thead>
             <tr>
@@ -82,7 +95,7 @@
               <th
                 class="bg-input-bg text-text font-semibold text-left p-4 border-b border-container-border whitespace-nowrap"
               >
-                DNI
+                Identificación
               </th>
               <th
                 class="bg-input-bg text-text font-semibold text-left p-4 border-b border-container-border whitespace-nowrap"
@@ -97,17 +110,7 @@
               <th
                 class="bg-input-bg text-text font-semibold text-left p-4 border-b border-container-border whitespace-nowrap"
               >
-                Pólizas
-              </th>
-              <th
-                class="bg-input-bg text-text font-semibold text-left p-4 border-b border-container-border whitespace-nowrap"
-              >
-                Estado
-              </th>
-              <th
-                class="bg-input-bg text-text font-semibold text-left p-4 border-b border-container-border whitespace-nowrap"
-              >
-                Última Actualización
+                # Pólizas
               </th>
               <th
                 class="bg-input-bg text-text font-semibold text-left p-4 border-b border-container-border whitespace-nowrap"
@@ -119,27 +122,42 @@
           <tbody>
             <tr
               v-for="client in filteredItems"
-              :key="client.id"
+              :key="client.id_cliente"
               class="border-b border-container-border last:border-b-0 hover:bg-input-bg"
             >
               <!-- Información del cliente -->
               <td class="p-4">
                 <div class="flex items-center gap-3">
-                  <!-- Avatar del cliente con iniciales -->
+                  <!-- Verificar si el cliente tiene una foto -->
                   <div
-                    class="w-12 h-12 rounded-lg flex items-center justify-center bg-[#8CBFCF] text-white font-bold text-xl shadow-md"
-                    :title="client.name"
+                    v-if="client.foto"
+                    class="w-12 h-12 rounded-lg overflow-hidden shadow-md"
+                    :title="client.nombres"
                   >
-                    {{ getInitials(client.name) }}
+                    <img
+                      :src="getImageSrc(client.foto)"
+                      alt="Foto del cliente"
+                      class="w-full h-full object-cover"
+                    />
                   </div>
-                  <div class="font-medium text-text">{{ client.name }}</div>
+
+                  <!-- Si no hay foto, mostrar las iniciales -->
+                  <div
+                    v-else
+                    class="w-12 h-12 rounded-lg flex items-center justify-center bg-[#8CBFCF] text-white font-bold text-xl shadow-md"
+                    :title="client.nombres"
+                  >
+                    {{ getInitials(client.nombres) }}
+                  </div>
+
+                  <div class="font-medium text-text">{{ client.nombres }}</div>
                 </div>
               </td>
 
-              <!-- DNI -->
+              <!-- IDENTIFICACIÓN -->
               <td class="p-4">
                 <div class="font-mono text-sm text-text/80 px-2 py-1 bg-input-bg rounded">
-                  {{ client.dni }}
+                  {{ client.identificacion }}
                 </div>
               </td>
 
@@ -148,11 +166,11 @@
                 <div class="flex flex-col gap-1">
                   <div class="flex items-center gap-2">
                     <Mail class="w-4 h-4 text-text/50" />
-                    <span class="text-sm text-text">{{ client.email }}</span>
+                    <span class="text-sm text-text">{{ client.correo }}</span>
                   </div>
                   <div class="flex items-center gap-2">
                     <Phone class="w-4 h-4 text-text/50" />
-                    <span class="text-sm text-text">{{ client.phone }}</span>
+                    <span class="text-sm text-text">{{ client.tel_1 }}</span>
                   </div>
                 </div>
               </td>
@@ -160,73 +178,56 @@
               <!-- Dirección -->
               <td class="p-4">
                 <div class="flex items-center gap-2">
-                  <MapPin class="w-4 h-4 text-text/50" />
-                  <span class="text-sm text-text">{{ client.address }}</span>
+                  <MapPin class="w-4 h-4 text-text/50 flex-shrink-0" />
+                  <span class="text-sm text-text">{{ client.direccion }}</span>
                 </div>
               </td>
 
-              <!-- Contador de pólizas -->
+              <!-- Contador de pólizas TODO: incorporarlo cuando ya esté la tabla de pólizas asignadas -->
               <td class="p-4">
-                <div class="font-semibold text-primary">
-                  {{ client.insuranceCount }}
-                </div>
-              </td>
-
-              <!-- Estado -->
-              <td class="p-4">
-                <span
-                  class="inline-flex px-3 py-1 rounded-full text-xs font-medium"
-                  :class="
-                    client.status === 'active'
-                      ? 'bg-emerald-100 text-emerald-600'
-                      : 'bg-red-100 text-red-600'
-                  "
+                <div
+                  class="flex items-center justify-center font-semibold text-primary rounded-full bg-gray-100"
                 >
-                  {{ client.status === 'active' ? 'Activo' : 'Inactivo' }}
-                </span>
-              </td>
-
-              <!-- Última actualización -->
-              <td class="p-4">
-                <div class="text-sm text-text/70">
-                  {{
-                    new Date(client.lastUpdate).toLocaleDateString('es-HN', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                    })
-                  }}
+                  {{ 'TODO' }}
                 </div>
               </td>
 
               <!-- Botones de acción -->
               <td class="p-4">
                 <div class="flex items-center gap-2">
+                  <!-- Ver detalles del cliente -->
                   <button
                     title="Ver detalles del cliente"
                     class="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-input-border bg-input-bg transition-all duration-300 hover:border-primary hover:bg-primary hover:-translate-y-0.5"
-                    @click="handleViewClient(client.id)"
+                    @click="handleViewClient(client.id_cliente ?? '')"
                   >
                     <Eye class="w-4 h-4 text-text/50 group-hover:text-white" />
                     <span class="text-xs font-medium text-text group-hover:text-white">Ver</span>
                   </button>
+
+                  <!-- Ver pólizas del cliente -->
                   <button
                     title="Ver pólizas del cliente"
                     class="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-input-border bg-input-bg transition-all duration-300 hover:border-primary hover:bg-primary hover:-translate-y-0.5"
-                    @click="handleViewPolicies(client.id)"
+                    @click="handleViewPolicies(client.id_cliente ?? '')"
                   >
                     <FileText class="w-4 h-4 text-text/50 group-hover:text-white" />
-                    <span class="text-xs font-medium text-text group-hover:text-white">Póliza</span>
+                    <span class="text-xs font-medium text-text group-hover:text-white"
+                      >Pólizas</span
+                    >
                   </button>
+
+                  <!-- Ver pagos del cliente -->
                   <button
                     title="Ver pagos del cliente"
                     class="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-input-border bg-input-bg transition-all duration-300 hover:border-primary hover:bg-primary hover:-translate-y-0.5"
                     @click="
                       () => {
-                        selectedClient = clients.find((c) => c.id === client.id) || null;
-                        if (selectedClient) {
-                          showPaymentsModal = true;
-                        }
+                        // selectedClient =
+                        //   clientes.find((c) => c.id_cliente === client.id_cliente) || null;
+                        // if (selectedClient) {
+                        //   showPaymentsModal = true;
+                        // }
                       }
                     "
                   >
@@ -238,6 +239,18 @@
             </tr>
           </tbody>
         </table>
+
+        <!-- Paginación unificada -->
+        <div class="mt-6 p-4">
+          <PaginationButtons
+            :page="page"
+            :is-first-page="isFirstPage"
+            :has-more-data="hasMorePages"
+            :total-pages="totalPages"
+            :items-per-page="itemsPerPage"
+            @update:items-per-page="handleItemsPerPageChange"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -246,36 +259,29 @@
   <ViewClientModal
     v-if="selectedClient"
     :show="showClientModal"
+    :id-cliente="selectedClient.id_cliente"
     :client="selectedClient"
     @close="handleCloseModal"
     @update-client="handleUpdateClient"
+    @delete-client="handleDeleteClient"
   />
 
   <AddClientModal :show="showAddModal" @close="showAddModal = false" @save="handleAddClient" />
 
-  <ViewClientPaymentsModal
+  <!-- <ViewClientPaymentsModal
     v-if="selectedClient && selectedPolicy"
     :show="showPaymentsModal"
     :client="selectedClient"
     :policy="selectedPolicy"
     @close="showPaymentsModal = false"
-  />
+  /> -->
 
   <ViewClientPolicyModal
     v-if="selectedClient"
     :show="showPolicyModal"
     :client="selectedClient"
-    :policies="clientPolicies"
+    :id-cliente="selectedClient.id_cliente"
     @close="showPolicyModal = false"
-    @view-payments="
-      (policyId: number) => {
-        showPolicyModal = false;
-        selectedPolicy = clientPolicies.find((p) => p.id === policyId) || null;
-        if (selectedPolicy) {
-          showPaymentsModal = true;
-        }
-      }
-    "
     @assign-policy="() => console.log('Assign policy')"
   />
 

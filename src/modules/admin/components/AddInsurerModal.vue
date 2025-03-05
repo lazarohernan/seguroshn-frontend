@@ -283,6 +283,7 @@
     nombre_gestor.value = '';
     tel_gestor.value = '';
     correo_gestor.value = '';
+    fileInput.value = null;
   };
 
   const handleClose = () => {

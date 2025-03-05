@@ -63,22 +63,11 @@ export const createAseguradoraAction = async (aseguradora: Partial<Aseguradora>)
   }
 };
 
-export const updateAseguradoraAction = async (aseguradora: Aseguradora) => {
+export const updateAseguradoraAction = async (formData: FormData) => {
+  const idAseguradora = formData.get('id_aseguradora');
   try {
-    const formData = new FormData();
-    formData.append('id_correduria', aseguradora.id_correduria ?? '');
-    formData.append('nombre', aseguradora.nombre ?? '');
-    formData.append('descripcion', aseguradora.descripcion ?? '');
-    formData.append('nombre_gestor', aseguradora.nombre_gestor ?? '');
-    formData.append('tel_gestor', aseguradora.tel_gestor ?? '');
-    formData.append('correo_gestor', aseguradora.correo_gestor ?? '');
-
-    if (aseguradora.logo instanceof File) {
-      formData.append('logo', aseguradora.logo); // Solo si es un archivo
-    }
-
     const { data } = await api.put<CreateAseguradoraResponse>(
-      `/aseguradoras/${aseguradora.id_aseguradora}`,
+      `/aseguradoras/${idAseguradora}`,
       formData,
       {
         headers: {
