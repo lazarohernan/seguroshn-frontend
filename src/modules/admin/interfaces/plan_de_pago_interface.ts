@@ -29,7 +29,6 @@ export interface PlanDePago {
   pago_uno: number;
   numero_poliza: string;
   archivo_poliza?: string | null;
-  status?: string | null;
   observacion?: string | null;
 
   // Propiedades adicionales para la UI (no están en la BD)
@@ -50,7 +49,6 @@ export interface CreatePlanDePagoDTO {
   pago_uno: number;
   numero_poliza: string;
   archivo_poliza?: string | File;
-  status?: string;
   observacion?: string;
 }
 
@@ -69,21 +67,16 @@ export interface UpdatePlanDePagoDTO {
   pago_uno?: number;
   numero_poliza?: string;
   archivo_poliza?: string | File;
-  status?: string;
   observacion?: string;
 }
 
-/**
- * Interfaz para representar el estado de un Plan de Pago
- */
-export enum PlanDePagoStatus {
-  VIGENTE = 'vigente',
-  VENCIDO = 'vencido',
-  CANCELADO = 'cancelado',
-  PENDIENTE = 'pendiente',
+export interface CreatePlanDePagoResponse {
+  ok: boolean;
+  message: string;
+  data: PlanDePago;
 }
 
-export interface CreatePlanDePagoResponse {
+export interface UpdatePlanDePagoResponse {
   ok: boolean;
   message: string;
   data: PlanDePago;

@@ -47,7 +47,7 @@
 
       <!-- Tabla de Pólizas Activas (Plan de Pago) -->
       <div
-        v-if="policies.length > 0"
+        v-if="planesDePago.length > 0"
         class="flex-1 min-h-0 overflow-auto border border-input-border rounded-xl bg-input-bg"
       >
         <table class="w-full border-separate border-spacing-0">
@@ -79,7 +79,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="policy in policies" :key="policy.id_plan" class="hover:bg-background">
+            <tr v-for="policy in planesDePago" :key="policy.id_plan" class="hover:bg-background">
               <td class="py-2 px-3 text-sm text-text border-b border-input-border">
                 {{ policy.numero_poliza }}
               </td>
@@ -97,11 +97,15 @@
                 <span
                   class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
                   :class="{
-                    'bg-emerald-100 text-emerald-600': policy.status === 'vigente',
-                    'bg-red-100 text-red-600': policy.status === 'vencida',
+                    'bg-emerald-100 text-emerald-600':
+                      policyStatuses.find((p) => p.id_plan === policy.id_plan)?.status ===
+                      'vigente',
+                    'bg-red-100 text-red-600':
+                      policyStatuses.find((p) => p.id_plan === policy.id_plan)?.status ===
+                      'vencida',
                   }"
                 >
-                  {{ policy.status }}
+                  {{ policyStatuses.find((p) => p.id_plan === policy.id_plan)?.status }}
                 </span>
               </td>
               <td class="py-2 px-3 text-sm text-text border-b border-input-border">
@@ -119,6 +123,13 @@
                     @click="emit('viewPayments', policy.id_plan ?? '')"
                   >
                     <CreditCard class="w-4 h-4" />
+                  </button>
+                  <button
+                    class="p-1.5 rounded-lg border-none bg-background text-text transition-all duration-300 hover:bg-[#FF544E] hover:text-white hover:-translate-y-0.5 flex items-center justify-center"
+                    title="Eliminar Póliza"
+                    @click="handleDeletePlan(policy)"
+                  >
+                    <Trash class="w-4 h-4" />
                   </button>
                 </div>
               </td>
@@ -138,21 +149,88 @@
         </div>
       </div>
     </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div
+      v-if="showDeleteConfirmation"
+      class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[1000] flex items-center justify-center"
+      @click.self="showDeleteConfirmation = false"
+    >
+      <div class="w-full max-w-md bg-background rounded-2xl p-6 space-y-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 flex items-center justify-center rounded-full bg-red-100">
+            <AlertTriangle class="w-5 h-5 text-red-500" />
+          </div>
+          <h3 class="text-lg font-semibold text-text">Confirmar Eliminación</h3>
+        </div>
+        <p class="text-text/70">
+          ¿Está seguro que desea eliminar el plan de pago
+          <span class="font-medium text-text">{{ planToDelete?.nombre_poliza }}</span
+          >? Esta acción no se puede deshacer.
+        </p>
+        <div class="flex justify-end gap-3">
+          <button
+            class="px-4 py-2 rounded-xl bg-input-bg border border-input-border text-sm font-medium text-text transition-all duration-300 hover:bg-primary hover:border-primary hover:text-white hover:-translate-y-0.5 hover:shadow-md"
+            @click="showDeleteConfirmation = false"
+          >
+            Cancelar
+          </button>
+          <button
+            class="px-4 py-2 rounded-xl bg-red-500 text-white text-sm font-medium border-none transition-all duration-300 hover:bg-red-600 hover:-translate-y-0.5 hover:shadow-lg"
+            @click="confirmDelete"
+          >
+            Eliminar
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-  import { User, Mail, Hash, Eye, CreditCard } from 'lucide-vue-next';
+  import { User, Mail, Hash, Eye, CreditCard, Trash, AlertTriangle } from 'lucide-vue-next';
   import { Cliente } from '../interfaces/cliente_interface';
   import { PlanDePago } from '../interfaces/plan_de_pago_interface';
+  import { ref, computed } from 'vue';
 
-  defineProps<{
+  const props = defineProps<{
     client: Cliente;
-    policies: PlanDePago[];
+    planesDePago: PlanDePago[];
   }>();
 
   const emit = defineEmits<{
     viewPolicy: [policyId: string];
-    viewPayments: [policyId: string];
+    viewPayments: [planDePagoId: string];
+    deletePlanDePago: [policyId: string];
   }>();
+
+  const showDeleteConfirmation = ref(false);
+  const planToDelete = ref<PlanDePago | null>(null);
+
+  const handleDeletePlan = (plan: PlanDePago) => {
+    planToDelete.value = plan;
+    showDeleteConfirmation.value = true;
+  };
+
+  const confirmDelete = () => {
+    if (planToDelete.value) {
+      emit('deletePlanDePago', planToDelete.value.id_plan ?? '');
+      showDeleteConfirmation.value = false;
+      planToDelete.value = null;
+    }
+  };
+
+  // Computed property to determine the status
+  const policyStatuses = computed(() => {
+    return props.planesDePago.map((policy) => {
+      const paymentDate = new Date(policy.fecha_de_pago);
+      const expirationDate = new Date(paymentDate);
+      expirationDate.setMonth(expirationDate.getMonth() + policy.plazo);
+
+      return {
+        id_plan: policy.id_plan,
+        status: new Date() < expirationDate ? 'vigente' : 'vencida',
+      };
+    });
+  });
 </script>

@@ -1,8 +1,10 @@
 import { api } from '@/api/axiosInstance';
 import {
   CreatePlanDePagoResponse,
+  DeleteResponse,
   Respuesta,
   RespuestaSimple,
+  UpdatePlanDePagoResponse,
 } from '../interfaces/plan_de_pago_interface';
 
 export const getPlanesDePagoAction = async (id_cliente: string) => {
@@ -28,15 +30,12 @@ export const getPlanDePagoAction = async (id_plan: string) => {
 };
 
 export const createPlanDePagoAction = async (formData: FormData) => {
-  console.log('formData', formData);
   try {
     const { data } = await api.post<CreatePlanDePagoResponse>(`/plan-de-pago/`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data', //Necesaria para adjuntar archivos
       },
     });
-
-    console.log('data', data);
 
     if (data.ok) {
       return data;
@@ -52,44 +51,48 @@ export const createPlanDePagoAction = async (formData: FormData) => {
   }
 };
 
-// export const updatePolizaAction = async (formData: FormData) => {
-//   //Obtener el id de la póliza
-//   const idPoliza = formData.get('id_poliza');
-//   try {
-//     const { data } = await api.put<CreatePolizaResponse>(`/polizas/${idPoliza}`, formData, {
-//       headers: {
-//         'Content-Type': 'multipart/form-data', //Necesaria para adjuntar archivos
-//       },
-//     });
+export const updatePlanDePagoAction = async (formData: FormData) => {
+  //Obtener el id del plan de pago
+  const idPlanDePago = formData.get('id_plan');
+  try {
+    const { data } = await api.put<UpdatePlanDePagoResponse>(
+      `/plan-de-pago/${idPlanDePago}`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data', //Necesaria para adjuntar archivos
+        },
+      },
+    );
 
-//     if (data.ok) {
-//       return data;
-//     } else {
-//       return {
-//         ok: false,
-//         message: 'Error al actualizar el registro',
-//       };
-//     }
-//   } catch (error) {
-//     console.log(error);
-//     throw new Error('Error actualizando póliza');
-//   }
-// };
+    if (data.ok) {
+      return data;
+    } else {
+      return {
+        ok: false,
+        message: 'Error al actualizar el registro',
+      };
+    }
+  } catch (error) {
+    console.log(error);
+    throw new Error('Error actualizando póliza');
+  }
+};
 
-// export const deletePolizaAction = async (idPoliza: string) => {
-//   try {
-//     const { data } = await api.patch<DeleteResponse>(`/polizas/${idPoliza}`);
+export const deletePlanDePagoAction = async (idPlanDePago: string) => {
+  try {
+    const { data } = await api.patch<DeleteResponse>(`/plan-de-pago/${idPlanDePago}`);
 
-//     if (data.ok) {
-//       return data;
-//     } else {
-//       return {
-//         ok: false,
-//         message: 'Error al borrar el registro',
-//       };
-//     }
-//   } catch (error) {
-//     console.log(error);
-//     throw new Error('Error borrando póliza');
-//   }
-// };
+    if (data.ok) {
+      return data;
+    } else {
+      return {
+        ok: false,
+        message: 'Error al borrar el registro',
+      };
+    }
+  } catch (error) {
+    console.log(error);
+    throw new Error('Error borrando póliza');
+  }
+};

@@ -4,7 +4,6 @@ import SearchBar from '@/modules/common/components/SearchBar.vue';
 import PaginationButtons from '@/modules/common/components/PaginationButtons.vue';
 import { useSearch } from '@/composables/useSearch';
 import { useExport } from '@/composables/useExport';
-import ViewClientPaymentsModal from '@/modules/admin/components/ViewClientPaymentsModal.vue';
 import ViewClientPolicyModal from '@/modules/admin/components/ViewClientPolicyModal.vue';
 import {
   Plus,
@@ -36,8 +35,10 @@ const ViewClientModal = defineAsyncComponent(
 const AddClientModal = defineAsyncComponent(
   () => import('@/modules/admin/components/AddClientModal.vue'),
 );
-// const ViewClientPaymentsModal = defineAsyncComponent(() => import('@/modules/admin/components/ViewClientPaymentsModal.vue'));
-// const ViewClientPolicyModal = defineAsyncComponent(() => import('@/modules/admin/components/ViewClientPolicyModal.vue'));
+const ViewClientPaymentsModal = defineAsyncComponent(
+  () => import('@/modules/admin/components/ViewClientPaymentsModal.vue'),
+);
+
 const ExportOptionsModal = defineAsyncComponent(
   () => import('@/components/ExportOptionsModal.vue'),
 );
@@ -84,6 +85,7 @@ export default defineComponent({
     const showExportModal = ref(false);
     const selectedClient = ref<Cliente | null>(null);
     const selectedPolicy = ref<Policy | null>(null);
+    const selectedPlanDePagoId = ref<string>('');
     //Obtener el id_correduria del localstorage
     const id_correduria = localStorage.getItem('id_correduria') ?? '';
     const isLoading = ref(false);
@@ -211,6 +213,13 @@ export default defineComponent({
       selectedClient.value = clientes.value.find((c) => c.id_cliente === clientId) || null;
       if (selectedClient.value) {
         showPolicyModal.value = true;
+      }
+    };
+
+    const handleViewPayments = (planDePagoId: string): void => {
+      selectedPlanDePagoId.value = planDePagoId;
+      if (selectedClient.value) {
+        showPaymentsModal.value = true;
       }
     };
 
@@ -346,6 +355,7 @@ export default defineComponent({
       paginatedItems,
       isFirstPage,
       hasMorePages,
+      selectedPlanDePagoId,
 
       //Actions
       getInitials,
@@ -358,6 +368,7 @@ export default defineComponent({
       handleDeleteClient,
       prefetchNextPage,
       handleItemsPerPageChange,
+      handleViewPayments,
     };
   },
 

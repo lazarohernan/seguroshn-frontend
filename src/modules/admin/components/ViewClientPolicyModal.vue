@@ -41,7 +41,7 @@
           <ClientPolicyList
             v-if="!isAssignPolicyVisible && formMode === 'create'"
             :client="client"
-            :policies="policies"
+            :planes-de-pago="planesDePago"
             @view-policy="handleViewPolicy"
             @view-payments="
               (id) => {
@@ -49,14 +49,14 @@
                 handleClose();
               }
             "
+            @delete-plan-de-pago="handleDeletePlanDePago"
           />
+
           <AssignPolicyForm
             v-else
             :mode="formMode"
             :client="client"
-            :available-policies="[]"
-            :existing-policy="selectedPolicy"
-            :id-plan-de-pago="selectedPolicyId ?? ''"
+            :plan-de-pago-id="selectedPlanDePagoId ?? ''"
             @save="handleSavePolicy"
             @edit="handleEditPolicy"
             @cancel="handleCancelEdit"
@@ -113,8 +113,9 @@
   import AssignPolicyForm from './AssignPolicyForm.vue';
   import {
     createPlanDePagoAction,
-    getPlanDePagoAction,
+    deletePlanDePagoAction,
     getPlanesDePagoAction,
+    updatePlanDePagoAction,
   } from '../actions/plan_de_pago_actions';
   import { Cliente } from '../interfaces/cliente_interface';
   import {
@@ -134,85 +135,30 @@
 
   const emit = defineEmits<{
     close: [];
-    viewPayments: [policyId: string];
-    assignPolicy: [];
+    viewPayments: [planDePagoId: string];
   }>();
 
   const formMode = ref<'view' | 'edit' | 'create'>('create');
-  const selectedPolicyId = ref<string | null>(null);
+  const selectedPlanDePagoId = ref<string | null>(null);
   const showCloseConfirm = ref(false);
   const hasFormChanges = ref(false);
-  const policies = ref<PlanDePago[]>([]);
-  const selectedPolicy = ref<PlanDePago>();
+  const planesDePago = ref<PlanDePago[]>([]);
 
-  const handleViewPolicy = async (policyId: string) => {
-    selectedPolicyId.value = policyId;
+  const handleViewPolicy = async (planDePagoId: string) => {
+    selectedPlanDePagoId.value = planDePagoId;
     formMode.value = 'view';
-    try {
-      const response = await getPlanDePagoAction(policyId);
-      selectedPolicy.value = response.data;
-    } catch (error) {
-      console.error('Error al cargar aseguradoras:', error);
-    }
   };
 
   const handleEditPolicy = () => {
     formMode.value = 'edit';
   };
 
-  const handleSavePolicy = async (data: CreatePlanDePagoDTO | UpdatePlanDePagoDTO) => {
-    try {
-      const formData = new FormData();
-      formData.append('id_cliente', String(data.id_cliente ?? ''));
-      formData.append('id_poliza', String(data.id_poliza ?? ''));
-      formData.append('prima_total', String(data.prima_total ?? 0));
-      formData.append('plazo', String(data.plazo ?? 0));
-      formData.append('fecha_de_pago', String(data.fecha_de_pago ?? ''));
-      formData.append('pago_uno', String(data.pago_uno ?? 0));
-
-      if (data.numero_poliza) {
-        formData.append('numero_poliza', data.numero_poliza);
-      }
-
-      if (data.status) {
-        formData.append('status', data.status);
-      }
-
-      if (data.observacion) {
-        formData.append('observacion', data.observacion);
-      }
-
-      if ('archivo_poliza' in data && data.archivo_poliza instanceof File) {
-        formData.append('archivo_poliza', data.archivo_poliza);
-      }
-
-      // llamada a la API para guardar los datos
-      const response = await createPlanDePagoAction(formData);
-      if (response.ok) {
-        //Volver a cargar los planes de pago
-        const response = await getPlanesDePagoAction(props.client.id_cliente ?? '');
-        policies.value = response.data;
-
-        selectedPolicyId.value = null;
-        formMode.value = 'create';
-        isAssignPolicyVisible.value = false;
-        hasFormChanges.value = false;
-
-        toast.success('Registro agregado exitosamente!');
-      } else {
-        toast.error('Ocurrió un error al agregar el registro!');
-      }
-    } catch (error) {
-      console.error('Error al guardar la póliza:', error);
-      toast.error('Ocurrió un error al agregar el registro!');
-    }
-  };
-
   const handleCancelEdit = () => {
     if (formMode.value === 'edit') {
       formMode.value = 'view';
+      isAssignPolicyVisible.value = true;
     } else {
-      selectedPolicyId.value = null;
+      selectedPlanDePagoId.value = null;
       formMode.value = 'create';
       isAssignPolicyVisible.value = false;
     }
@@ -257,10 +203,82 @@
     hasFormChanges.value = changes;
   };
 
+  const handleSavePolicy = async (data: CreatePlanDePagoDTO | UpdatePlanDePagoDTO) => {
+    try {
+      const formData = new FormData();
+      //Propia para UpdatePlanDePagoDTO
+      if ('id_plan' in data) {
+        formData.append('id_plan', String(data.id_plan ?? ''));
+      }
+      if ('id_cliente' in data) {
+        formData.append('id_cliente', String(data.id_cliente ?? ''));
+      }
+      formData.append('id_poliza', String(data.id_poliza ?? ''));
+      formData.append('prima_total', String(data.prima_total ?? 0));
+      formData.append('plazo', String(data.plazo ?? 0));
+      formData.append('fecha_de_pago', String(data.fecha_de_pago ?? ''));
+      formData.append('pago_uno', String(data.pago_uno ?? 0));
+
+      if (data.numero_poliza) {
+        formData.append('numero_poliza', data.numero_poliza);
+      }
+
+      if (data.observacion) {
+        formData.append('observacion', data.observacion);
+      }
+
+      if ('archivo_poliza' in data && data.archivo_poliza instanceof File) {
+        formData.append('archivo_poliza', data.archivo_poliza);
+      }
+
+      let response;
+      // llamada a la API para guardar los datos
+      if (formData.get('id_plan')) {
+        response = await updatePlanDePagoAction(formData);
+      } else {
+        response = await createPlanDePagoAction(formData);
+      }
+      if (response.ok) {
+        //Volver a cargar los planes de pago
+        const response = await getPlanesDePagoAction(props.client.id_cliente ?? '');
+        planesDePago.value = response.data;
+
+        selectedPlanDePagoId.value = null;
+        formMode.value = 'create';
+        isAssignPolicyVisible.value = false;
+        hasFormChanges.value = false;
+
+        toast.success('Registro procesado exitosamente!');
+      } else {
+        toast.error('Ocurrió un error al procesar el registro!');
+      }
+    } catch (error) {
+      console.error('Error al procesar el registro:', error);
+      toast.error('Ocurrió un error al procesar el registro!');
+    }
+  };
+
+  const handleDeletePlanDePago = async (planDePagoId: string) => {
+    try {
+      const response = await deletePlanDePagoAction(planDePagoId);
+      if (response.ok) {
+        //Volver a cargar los planes de pago
+        const response = await getPlanesDePagoAction(props.client.id_cliente ?? '');
+        planesDePago.value = response.data;
+        toast.success('Póliza eliminada exitosamente!');
+      } else {
+        toast.error('Ocurrió un error al eliminar la póliza!');
+      }
+    } catch (error) {
+      console.error('Error al eliminar la póliza:', error);
+      toast.error('Ocurrió un error al eliminar la póliza!');
+    }
+  };
+
   onMounted(async () => {
     try {
       const response = await getPlanesDePagoAction(props.client.id_cliente ?? '');
-      policies.value = response.data;
+      planesDePago.value = response.data;
     } catch (error) {
       console.error('Error al cargar aseguradoras:', error);
     }
@@ -272,7 +290,7 @@
     async (newValue: string) => {
       try {
         const response = await getPlanesDePagoAction(newValue);
-        policies.value = response.data;
+        planesDePago.value = response.data;
       } catch (error) {
         console.error('Error al cargar aseguradoras:', error);
       }

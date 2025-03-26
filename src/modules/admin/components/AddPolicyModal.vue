@@ -184,7 +184,7 @@
         fileError.value = 'Solo se permiten archivos PDF o Word.';
         target.value = ''; // Borra el archivo no válido
       } else if (file.size > maxSize) {
-        fileError.value = 'El archivo no debe superar los 8MB.';
+        fileError.value = 'El archivo no debe superar los 10MB.';
         target.value = ''; // Borra el archivo no válido
       } else {
         fileError.value = '';

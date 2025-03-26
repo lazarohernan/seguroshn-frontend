@@ -99,6 +99,7 @@
               >
               <div class="relative flex items-center min-w-0">
                 <input
+                  v-if="props.mode !== 'view'"
                   id="payment-date"
                   v-model="paymentDate"
                   type="date"
@@ -106,6 +107,10 @@
                   required
                   :disabled="isViewMode"
                 />
+
+                <p v-else class="text-sm text-text/80 px-2">
+                  {{ paymentDate ?? 'no provista' }}
+                </p>
               </div>
             </div>
           </div>
@@ -212,6 +217,7 @@
                 class="hidden"
                 accept=".pdf,.doc,.docx"
                 :disabled="isViewMode"
+                required
                 @change="validateFile"
               />
               <label
@@ -220,7 +226,9 @@
                 :class="{ 'opacity-70 cursor-not-allowed': isViewMode }"
               >
                 <span class="truncate">
-                  {{ archivoPoliza ? archivoPoliza.name : 'Seleccionar archivo' }}
+                  <a :href="archivoPolizaUrl ?? '#'" target="_blank" class="text-primary"
+                    >{{ displayFileName }}
+                  </a>
                 </span>
                 <span class="text-primary text-xs">PDF o Word</span>
               </label>
@@ -322,7 +330,7 @@
     <!-- Botones de Acción -->
     <div class="flex justify-end gap-3 py-4 bg-background border-t border-input-border mt-auto">
       <button
-        v-if="props.mode === 'view'"
+        v-if="props.mode === 'view' || 'edit'"
         class="px-4 py-2 rounded-lg text-sm font-semibold border border-input-border text-text transition-all duration-300 hover:border-primary hover:bg-primary hover:text-white hover:-translate-y-0.5"
         @click="handleCancel"
       >
@@ -343,7 +351,8 @@
           !term ||
           !paymentDate ||
           pagoUno === 0 ||
-          !numeroPoliza
+          !numeroPoliza ||
+          (props.mode === 'create' && !archivoPoliza)
         "
         class="px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-white border-none transition-all duration-300 hover:bg-primary-hover hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
         @click="handleSave"
@@ -377,8 +386,7 @@
   const props = defineProps<{
     mode: 'view' | 'edit' | 'create';
     client: Cliente;
-    availablePolicies: PlanDePago[];
-    idPlanDePago: string;
+    planDePagoId: string;
   }>();
 
   const emit = defineEmits<{
@@ -398,6 +406,9 @@
   const numeroPoliza = ref<string | null>(null); //Número de póliza
   const statusPoliza = ref<string | null>(null); //Estado de la póliza
   const observacion = ref<string | null>(null); //Observación
+
+  //Just for view mode
+  const archivoPolizaUrl = ref<string | null>(null);
 
   //id_correduria del localstorage
   const idCorreduria = localStorage.getItem('id_correduria');
@@ -475,23 +486,15 @@
       const response = await getPolizasAction(idCorreduria ?? '');
       polizas.value = response.data;
 
-      if (props.mode === 'view') {
-        const planElegido = await getPlanDePagoAction(props.idPlanDePago);
-        existingPlanDePago.value = planElegido.data;
-
-        // Cargar datos existentes en el formulario
-        if (existingPlanDePago.value) {
-          selectedPolicy.value = existingPlanDePago.value.id_poliza;
-          totalPremium.value = existingPlanDePago.value.prima_total;
-          term.value = existingPlanDePago.value.plazo;
-          paymentDate.value =
-            typeof existingPlanDePago.value.fecha_de_pago === 'string'
-              ? existingPlanDePago.value.fecha_de_pago
-              : existingPlanDePago.value.fecha_de_pago.toISOString().split('T')[0];
-          pagoUno.value = existingPlanDePago.value.pago_uno;
-          numeroPoliza.value = existingPlanDePago.value.numero_poliza;
-          statusPoliza.value = existingPlanDePago.value.status || null;
-          observacion.value = existingPlanDePago.value.observacion || null;
+      if (props.mode === 'view' && props.planDePagoId) {
+        try {
+          const planElegido = await getPlanDePagoAction(props.planDePagoId);
+          if (planElegido && planElegido.data) {
+            existingPlanDePago.value = planElegido.data;
+            inicitalizeFormData();
+          }
+        } catch (planError) {
+          console.error('Error al cargar el plan de pago:', planError);
         }
       }
     } catch (error) {
@@ -499,8 +502,38 @@
     }
   });
 
+  const inicitalizeFormData = () => {
+    if (existingPlanDePago.value) {
+      selectedPolicy.value = existingPlanDePago.value.id_poliza;
+      totalPremium.value = Number(existingPlanDePago.value.prima_total?.toString() || '0');
+      term.value = existingPlanDePago.value.plazo;
+      numeroPoliza.value = existingPlanDePago.value.numero_poliza;
+      statusPoliza.value = existingPlanDePago.value.status ?? 'sin estatus';
+      observacion.value = existingPlanDePago.value.observacion ?? 'sin observación';
+      pagoUno.value = Number(existingPlanDePago.value.pago_uno?.toString() || '0');
+      paymentDate.value = existingPlanDePago.value.fecha_de_pago.toString().split('T')[0];
+      archivoPolizaUrl.value = existingPlanDePago.value.archivo_poliza as string;
+    }
+  };
+
   // Computed properties
   const isViewMode = computed(() => props.mode === 'view');
+
+  const displayFileName = computed(() => {
+    if (isViewMode.value && existingPlanDePago.value?.archivo_poliza) {
+      // In view mode, show the filename from the existingPlanDePago if available
+      const filePath = existingPlanDePago.value.archivo_poliza;
+      // Extract filename from path (if it's a path)
+      if (typeof filePath === 'string') {
+        const parts = filePath.split('/');
+        return parts[parts.length - 1]; // Get last part (filename)
+      }
+      return 'Archivo adjunto';
+    }
+
+    // In edit/create mode, show the selected file name or default text
+    return archivoPoliza?.value?.name || 'Seleccionar archivo';
+  });
 
   const buttonText = computed(() => {
     switch (props.mode) {
@@ -517,39 +550,73 @@
 
   // Computed payment plan
   const paymentPlan = computed(() => {
-    if (!totalPremium.value || !term.value || !paymentDate.value || !pagoUno.value) return [];
-
-    const rows: PaymentRow[] = [];
-    const monthlyPayment = (totalPremium.value - pagoUno.value) / (term.value - 1);
-    const startDate = new Date(paymentDate.value);
-
-    let pendingAmount = totalPremium.value;
-
-    // Generar filas de pagos mensuales
-    for (let i = 0; i < term.value; i++) {
-      const date = new Date(startDate);
-      date.setMonth(date.getMonth() + i);
-
-      if (i === 0) {
-        rows.push({
-          number: i + 1,
-          amount: pagoUno.value,
-          dueDate: date.toISOString().split('T')[0],
-          pending: pendingAmount,
-        });
-        pendingAmount -= pagoUno.value;
-      } else {
-        rows.push({
-          number: i + 1,
-          amount: monthlyPayment,
-          dueDate: date.toISOString().split('T')[0],
-          pending: pendingAmount,
-        });
-        pendingAmount -= monthlyPayment;
+    try {
+      // Ensure all required values are present and valid
+      if (
+        !totalPremium.value ||
+        totalPremium.value <= 0 ||
+        !term.value ||
+        term.value <= 0 ||
+        !paymentDate.value ||
+        pagoUno.value === undefined ||
+        pagoUno.value < 0
+      ) {
+        return [];
       }
-    }
 
-    return rows;
+      // Handle the case where term is 1 (only one payment)
+      if (term.value === 1) {
+        const startDate = new Date(paymentDate.value);
+        if (isNaN(startDate.getTime())) return []; // Invalid date
+
+        return [
+          {
+            number: 1,
+            amount: totalPremium.value,
+            dueDate: startDate.toISOString().split('T')[0],
+            pending: 0,
+          },
+        ];
+      }
+
+      const rows: PaymentRow[] = [];
+      const monthlyPayment = (totalPremium.value - pagoUno.value) / (term.value - 1);
+
+      // Validate date
+      const startDate = new Date(paymentDate.value);
+      if (isNaN(startDate.getTime())) return []; // Invalid date
+
+      let pendingAmount = totalPremium.value;
+
+      // Generar filas de pagos mensuales
+      for (let i = 0; i < term.value; i++) {
+        const date = new Date(startDate);
+        date.setMonth(date.getMonth() + i);
+
+        if (i === 0) {
+          rows.push({
+            number: i + 1,
+            amount: pagoUno.value,
+            dueDate: date.toISOString().split('T')[0],
+            pending: pendingAmount,
+          });
+          pendingAmount -= pagoUno.value;
+        } else {
+          rows.push({
+            number: i + 1,
+            amount: monthlyPayment,
+            dueDate: date.toISOString().split('T')[0],
+            pending: pendingAmount,
+          });
+          pendingAmount -= monthlyPayment;
+        }
+      }
+
+      return rows;
+    } catch (error) {
+      console.error('Error calculating payment plan:', error);
+      return [];
+    }
   });
 
   const handleSave = () => {
@@ -567,6 +634,7 @@
       // Para edición
       const updateData: UpdatePlanDePagoDTO = {
         id_plan: existingPlanDePago.value.id_plan,
+        id_poliza: selectedPolicy.value,
         prima_total: totalPremium.value,
         plazo: term.value,
         fecha_de_pago: paymentDate.value,
@@ -610,7 +678,7 @@
       observacion.value !== (existingPlanDePago.value?.observacion ?? null) ||
       !!archivoPoliza.value;
 
-    if (!hasChanges || props.mode === 'view') {
+    if (!hasChanges || props.mode === 'view' || props.mode === 'edit') {
       emit('cancel');
     }
   };

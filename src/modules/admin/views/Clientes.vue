@@ -216,24 +216,6 @@
                       >Pólizas</span
                     >
                   </button>
-
-                  <!-- Ver pagos del cliente -->
-                  <button
-                    title="Ver pagos del cliente"
-                    class="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-input-border bg-input-bg transition-all duration-300 hover:border-primary hover:bg-primary hover:-translate-y-0.5"
-                    @click="
-                      () => {
-                        // selectedClient =
-                        //   clientes.find((c) => c.id_cliente === client.id_cliente) || null;
-                        // if (selectedClient) {
-                        //   showPaymentsModal = true;
-                        // }
-                      }
-                    "
-                  >
-                    <Coins class="w-4 h-4 text-text/50 group-hover:text-white" />
-                    <span class="text-xs font-medium text-text group-hover:text-white">Pagos</span>
-                  </button>
                 </div>
               </td>
             </tr>
@@ -268,13 +250,16 @@
 
   <AddClientModal :show="showAddModal" @close="showAddModal = false" @save="handleAddClient" />
 
-  <!-- <ViewClientPaymentsModal
-    v-if="selectedClient && selectedPolicy"
+  <ViewClientPaymentsModal
+    v-if="selectedClient"
     :show="showPaymentsModal"
     :client="selectedClient"
-    :policy="selectedPolicy"
-    @close="showPaymentsModal = false"
-  /> -->
+    :plan-de-pago-id="selectedPlanDePagoId"
+    @close="
+      showPaymentsModal = false;
+      showPolicyModal = true; //Para regresar al modal de pólizas
+    "
+  />
 
   <ViewClientPolicyModal
     v-if="selectedClient"
@@ -282,7 +267,7 @@
     :client="selectedClient"
     :id-cliente="selectedClient.id_cliente"
     @close="showPolicyModal = false"
-    @assign-policy="() => console.log('Assign policy')"
+    @view-payments="handleViewPayments"
   />
 
   <ExportOptionsModal
