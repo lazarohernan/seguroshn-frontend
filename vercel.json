@@ -2,6 +2,9 @@
   "framework": "vite",
   "buildCommand": "vue-tsc -b && vite build",
   "outputDirectory": "dist",
+  "env": {
+    "VITE_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkZWphemNndWVkcXlsaGNod2pnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMwNDE3NjEsImV4cCI6MjA1ODYxNzc2MX0.7bJlCKvbQsDRTMZOCPILaI7WGXp2nAk4x2zPMk3gL0U"
+  },
   "routes": [
     {
       "src": "/assets/(.*)",
