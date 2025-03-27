@@ -1,5 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router';
-import isNotAuthenticatedGuard from '../guards/is-not-authenticated-guard';
+// El guardián de autenticación se aplica globalmente en router/index.ts
+// por lo que no es necesario importarlo aquí
 
 export const authRoutes: RouteRecordRaw[] = [
   {

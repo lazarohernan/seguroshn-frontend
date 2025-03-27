@@ -19,10 +19,10 @@ export interface Aseguradora {
   id_aseguradora?: string;
   id_correduria: string;
   nombre: string;
-  nombre_gestor: string;
-  tel_gestor: string;
-  correo_gestor: string;
-  logo: string | File;
+  nombre_gestor?: string;
+  tel_gestor?: string;
+  correo_gestor?: string;
+  logo?: string | File;
   descripcion: string;
 }
 
