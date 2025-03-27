@@ -1,43 +1,30 @@
-import { api } from '@/api/axiosInstance';
-import type { AuthResponse } from '../interfaces';
-import { isAxiosError } from 'axios';
+import { supabase } from '@/lib/supabase'
 
-interface RegisterError {
-  ok: boolean;
-  message: string;
+interface RegisterData {
+  email: string
+  password: string
+  nombre: string
+  id_correduria: string
 }
 
-interface RegisterSuccess {
-  ok: boolean;
-  accessToken: string;
-  refreshToken: string;
-}
-
-export const registerAction = async (
-  fullName: string,
-  email: string,
-  password: string,
-): Promise<RegisterError | RegisterSuccess> => {
-  try {
-    const { data } = await api.post<AuthResponse>('/auth/register', {
-      fullName,
-      email,
-      password,
-    });
-
-    return {
-      ok: true,
-      accessToken: data.accessToken,
-      refreshToken: data.refreshToken,
-    };
-  } catch (error) {
-    if (isAxiosError(error) && error.response?.status === 401) {
-      return {
-        ok: false,
-        message: 'Datos incorrectos o usuario ya registrado',
-      };
+export const registerAction = async ({ email, password, nombre, id_correduria }: RegisterData) => {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        full_name: nombre,
+        id_correduria
+      }
     }
-    console.error(error);
-    throw new Error('Error while registration');
+  })
+
+  if (error) throw error
+  if (!data.user) return { ok: false }
+
+  return {
+    ok: true,
+    user: data.user,
+    session: data.session
   }
-};
+}
