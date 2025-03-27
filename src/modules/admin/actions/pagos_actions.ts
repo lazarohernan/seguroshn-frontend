@@ -1,11 +1,10 @@
-import { api } from '@/api/axiosInstance';
+import { supabase } from '@/lib/supabase';
 import {
-  CreatePagoResponse,
-  DeletePagoResponse,
   RespuestaPagos,
   RespuestaPagoSimple,
-  UpdatePagoResponse,
+  Pago
 } from '../interfaces/pagos_interface';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Obtiene todos los pagos de un plan de pago específico
@@ -14,10 +13,24 @@ import {
  */
 export const getPagosAction = async (id_plan: string) => {
   try {
-    const { data } = await api.get<RespuestaPagos>(`/pagos/?id_plan=${id_plan}`);
-    return data;
+    const { data, error, count } = await supabase
+      .from('pagos_de_polizas')
+      .select('*', { count: 'exact' })
+      .eq('id_plan', id_plan)
+      .eq('estado', true);
+    
+    if (error) throw error;
+    
+    // Transformar la respuesta al formato esperado por la interfaz
+    const respuesta: RespuestaPagos = {
+      message: 'Pagos obtenidos correctamente',
+      data: data || [],
+      totalRegistros: count || 0
+    };
+    
+    return respuesta;
   } catch (error) {
-    console.log(error);
+    console.error('Error al obtener los pagos:', error);
     throw new Error('Error al obtener los pagos');
   }
 };
@@ -29,10 +42,23 @@ export const getPagosAction = async (id_plan: string) => {
  */
 export const getPagoAction = async (id_pago: string) => {
   try {
-    const { data } = await api.get<RespuestaPagoSimple>(`/pagos/${id_pago}`);
-    return data;
+    const { data, error } = await supabase
+      .from('pagos_de_polizas')
+      .select('*')
+      .eq('id_pago', id_pago)
+      .single();
+    
+    if (error) throw error;
+    
+    // Transformar la respuesta al formato esperado por la interfaz
+    const respuesta: RespuestaPagoSimple = {
+      message: 'Pago obtenido correctamente',
+      data: data as Pago
+    };
+    
+    return respuesta;
   } catch (error) {
-    console.log(error);
+    console.error('Error al obtener el pago específico:', error);
     throw new Error('Error al obtener el pago específico');
   }
 };
@@ -44,11 +70,9 @@ export const getPagoAction = async (id_pago: string) => {
  */
 export const createPagoAction = async (formData: FormData) => {
   try {
-    // Verificar que id_plan esté presente y sea un UUID válido
+    // Verificar que id_plan esté presente
     const idPlan = formData.get('id_plan');
-
     if (!idPlan) {
-      console.error('Error: No se incluyó id_plan en el FormData');
       return {
         ok: false,
         message: 'Error: Falta el ID del plan',
@@ -56,44 +80,65 @@ export const createPagoAction = async (formData: FormData) => {
       };
     }
 
-    // Crear un nuevo FormData con valores explícitos para mayor control
-    const cleanFormData = new FormData();
-
-    for (const [key, value] of formData.entries()) {
-      if (key === 'id_plan') {
-        // Asegurar que el id_plan sea un string limpio
-        const cleanId = String(value).trim();
-        cleanFormData.append('id_plan', cleanId);
-      } else if (key === 'abono') {
-        // Asegurar que el abono sea un string numérico
-        cleanFormData.append('abono', String(value));
-      } else {
-        cleanFormData.append(key, value);
-      }
+    // Extraer valores del FormData
+    const abono = formData.get('abono') ? Number(formData.get('abono')) : 0;
+    const metodoPago = formData.get('metodo_pago')?.toString() || 'Transferencia';
+    const fecha = formData.get('fecha')?.toString() || new Date().toISOString();
+    
+    // Manejar archivo de comprobante si existe
+    let urlComprobante = '';
+    const comprobante = formData.get('comprobante') as File | null;
+    
+    if (comprobante && comprobante instanceof File) {
+      const fileExt = comprobante.name.split('.').pop();
+      const fileName = `${uuidv4()}.${fileExt}`;
+      const filePath = `comprobantes/${fileName}`;
+      
+      // Subir archivo a Storage
+      const { error: uploadError } = await supabase.storage
+        .from('pagos')
+        .upload(filePath, comprobante);
+      
+      if (uploadError) throw uploadError;
+      
+      // Obtener URL pública
+      const { data: urlData } = supabase.storage
+        .from('pagos')
+        .getPublicUrl(filePath);
+      
+      urlComprobante = urlData.publicUrl;
     }
-
-    const { data } = await api.post<CreatePagoResponse>('/pagos/', cleanFormData, {
-      headers: {
-        'Content-Type': 'multipart/form-data', // Necesario para adjuntar archivos
-      },
-    });
-
-    if (data.ok) {
-      return data;
-    } else {
-      return {
-        ok: false,
-        message: 'Error al registrar el pago',
-        data: data.data,
-      };
-    }
+    
+    // Crear el pago en la base de datos
+    const nuevoPago: Partial<Pago> = {
+      id_plan: idPlan.toString(),
+      abono,
+      fecha,
+      metodo_pago: metodoPago,
+      url_comprobante: urlComprobante || undefined,
+      estado: true
+    };
+    
+    const { data, error } = await supabase
+      .from('pagos_de_polizas')
+      .insert(nuevoPago)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    return {
+      ok: true,
+      message: 'Pago registrado correctamente',
+      data: data as Pago
+    };
   } catch (error) {
-    console.log('FormData contents:');
-    for (const [key, value] of formData.entries()) {
-      console.log(`${key}: ${typeof value === 'object' ? '[objeto File]' : value}`);
-    }
-    console.log('error', error);
-    throw error;
+    console.error('Error al crear pago:', error);
+    return {
+      ok: false,
+      message: 'Error al registrar el pago',
+      data: null,
+    };
   }
 };
 
@@ -105,24 +150,62 @@ export const createPagoAction = async (formData: FormData) => {
  */
 export const updatePagoAction = async (id_pago: string, formData: FormData) => {
   try {
-    const { data } = await api.put<UpdatePagoResponse>(`/pagos/${id_pago}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data', // Necesario para adjuntar archivos
-      },
-    });
-
-    if (data.ok) {
-      return data;
-    } else {
-      return {
-        ok: false,
-        message: 'Error al actualizar el pago',
-        data: data.data,
-      };
+    // Extraer valores del FormData
+    const abono = formData.get('abono') ? Number(formData.get('abono')) : 0;
+    const metodoPago = formData.get('metodo_pago')?.toString();
+    const fecha = formData.get('fecha')?.toString();
+    
+    // Preparar objeto para actualización
+    const pagoActualizado: Partial<Pago> = {};
+    
+    if (abono > 0) pagoActualizado.abono = abono;
+    if (metodoPago) pagoActualizado.metodo_pago = metodoPago;
+    if (fecha) pagoActualizado.fecha = fecha;
+    
+    // Manejar archivo de comprobante si existe
+    const comprobante = formData.get('comprobante') as File | null;
+    if (comprobante && comprobante instanceof File) {
+      const fileExt = comprobante.name.split('.').pop();
+      const fileName = `${uuidv4()}.${fileExt}`;
+      const filePath = `comprobantes/${fileName}`;
+      
+      // Subir archivo a Storage
+      const { error: uploadError } = await supabase.storage
+        .from('pagos')
+        .upload(filePath, comprobante);
+      
+      if (uploadError) throw uploadError;
+      
+      // Obtener URL pública
+      const { data: urlData } = supabase.storage
+        .from('pagos')
+        .getPublicUrl(filePath);
+      
+      pagoActualizado.url_comprobante = urlData.publicUrl;
     }
+    
+    // Actualizar el pago en la base de datos
+    const { data, error } = await supabase
+      .from('pagos_de_polizas')
+      .update(pagoActualizado)
+      .eq('id_pago', id_pago)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    return {
+      ok: true,
+      message: 'Pago actualizado correctamente',
+      data: data as Pago
+    };
   } catch (error) {
-    console.log(error);
-    throw new Error('Error al actualizar el pago');
+    console.error('Error al actualizar pago:', error);
+    return {
+      ok: false,
+      message: 'Error al actualizar el pago',
+      data: null,
+    };
   }
 };
 
@@ -133,19 +216,25 @@ export const updatePagoAction = async (id_pago: string, formData: FormData) => {
  */
 export const deletePagoAction = async (id_pago: string) => {
   try {
-    const { data } = await api.patch<DeletePagoResponse>(`/pagos/${id_pago}`);
-
-    if (data.ok) {
-      return data;
-    } else {
-      return {
-        ok: false,
-        message: 'Error al eliminar el pago',
-        cantidad: '0',
-      };
-    }
+    // En lugar de eliminar físicamente, marcamos como inactivo
+    const { error, count } = await supabase
+      .from('pagos_de_polizas')
+      .update({ estado: false })
+      .eq('id_pago', id_pago);
+    
+    if (error) throw error;
+    
+    return {
+      ok: true,
+      message: 'Pago eliminado correctamente',
+      cantidad: count?.toString() || '0'
+    };
   } catch (error) {
-    console.log(error);
-    throw new Error('Error al eliminar el pago');
+    console.error('Error al eliminar pago:', error);
+    return {
+      ok: false,
+      message: 'Error al eliminar el pago',
+      cantidad: '0',
+    };
   }
 };
