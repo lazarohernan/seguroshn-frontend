@@ -1,70 +1,164 @@
-import { api } from '@/api/axiosInstance';
-import { CreateClienteResponse, DeleteResponse, Respuesta } from '../interfaces/cliente_interface';
+import { supabase } from '@/lib/supabase'
+import type { CreateClienteResponse, DeleteResponse, Respuesta, Cliente } from '../interfaces/cliente_interface'
 
 export const getClientesAction = async (id_correduria: string, pagina: number, limite: number) => {
   try {
-    const { data } = await api.get<Respuesta>(
-      `/clientes/?id_correduria=${id_correduria}&pagina=${pagina}&limite=${limite}`,
-    );
+    // Calcular el rango para la paginación
+    const desde = (pagina - 1) * limite
+    const hasta = desde + limite - 1
 
-    return data;
+    const { data, error, count } = await supabase
+      .from('clientes')
+      .select('*', { count: 'exact' })
+      .eq('id_correduria', id_correduria)
+      .range(desde, hasta)
+
+    if (error) throw error
+
+    return {
+      ok: true,
+      clientes: data || [],
+      total: count || 0
+    } as Respuesta
   } catch (error) {
-    console.log(error);
-    throw new Error('Error getting pólizas');
+    console.error('Error obteniendo clientes:', error)
+    return {
+      ok: false,
+      clientes: [],
+      total: 0,
+      message: 'Error al obtener los clientes'
+    } as Respuesta
   }
-};
+}
 
 export const createClienteAction = async (formData: FormData) => {
   try {
-    const { data } = await api.post<CreateClienteResponse>(`/clientes/`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data', //Necesaria para adjuntar archivos
-      },
-    });
+    // Convertir FormData a objeto
+    const clienteData: Record<string, any> = {}
+    formData.forEach((value, key) => {
+      clienteData[key] = value
+    })
 
-    if (data.ok) {
-      return data;
-    } else {
-      return {
-        ok: false,
-        message: 'Error al agregar el registro',
-      };
+    // Manejar archivos si existen
+    let avatarUrl = null
+    if (formData.get('avatar') instanceof File) {
+      const avatarFile = formData.get('avatar') as File
+      if (avatarFile.size > 0) {
+        const fileExt = avatarFile.name.split('.').pop()
+        const fileName = `${Date.now()}.${fileExt}`
+        const { data: fileData, error: uploadError } = await supabase.storage
+          .from('avatares')
+          .upload(`clientes/${fileName}`, avatarFile)
+
+        if (uploadError) throw uploadError
+        avatarUrl = supabase.storage.from('avatares').getPublicUrl(`clientes/${fileName}`).data.publicUrl
+      }
     }
+
+    // Insertar cliente
+    const { data, error } = await supabase
+      .from('clientes')
+      .insert({
+        ...clienteData,
+        avatar: avatarUrl || clienteData.avatar,
+        fecha_creacion: new Date().toISOString()
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+
+    return {
+      ok: true,
+      cliente: data,
+      message: 'Cliente creado exitosamente'
+    } as CreateClienteResponse
   } catch (error) {
-    console.log(error);
-    throw new Error('Error creando póliza');
+    console.error('Error creando cliente:', error)
+    return {
+      ok: false,
+      message: 'Error al crear el cliente'
+    } as CreateClienteResponse
   }
-};
+}
 
 export const updateClienteAction = async (formData: FormData) => {
-  const id_cliente = formData.get('id_cliente');
   try {
-    const { data } = await api.put<CreateClienteResponse>(`/clientes/${id_cliente}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data', // Necessary for file uploads
-      },
-    });
+    const id_cliente = formData.get('id_cliente') as string
+    
+    // Convertir FormData a objeto
+    const clienteData: Record<string, any> = {}
+    formData.forEach((value, key) => {
+      if (key !== 'id_cliente') {
+        clienteData[key] = value
+      }
+    })
 
-    if (data.ok) {
-      return data;
-    } else {
-      return {
-        ok: false,
-        message: 'Error al actualizar el cliente',
-      };
+    // Manejar archivos si existen
+    let avatarUrl = null
+    if (formData.get('avatar') instanceof File) {
+      const avatarFile = formData.get('avatar') as File
+      if (avatarFile.size > 0) {
+        const fileExt = avatarFile.name.split('.').pop()
+        const fileName = `${Date.now()}.${fileExt}`
+        const { data: fileData, error: uploadError } = await supabase.storage
+          .from('avatares')
+          .upload(`clientes/${fileName}`, avatarFile)
+
+        if (uploadError) throw uploadError
+        avatarUrl = supabase.storage.from('avatares').getPublicUrl(`clientes/${fileName}`).data.publicUrl
+      }
     }
+
+    // Actualizar cliente
+    const { data, error } = await supabase
+      .from('clientes')
+      .update({
+        ...clienteData,
+        ...(avatarUrl && { avatar: avatarUrl }),
+        fecha_actualizacion: new Date().toISOString()
+      })
+      .eq('id_cliente', id_cliente)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    return {
+      ok: true,
+      cliente: data,
+      message: 'Cliente actualizado exitosamente'
+    } as CreateClienteResponse
   } catch (error) {
-    console.log(error);
-    throw new Error('Error actualizando cliente');
+    console.error('Error actualizando cliente:', error)
+    return {
+      ok: false,
+      message: 'Error al actualizar el cliente'
+    } as CreateClienteResponse
   }
-};
+}
 
 export const deleteClienteAction = async (id_cliente: string) => {
   try {
-    const { data } = await api.patch<DeleteResponse>(`/clientes/${id_cliente}`);
-    return data;
+    // En lugar de eliminar, marcamos como inactivo
+    const { data, error } = await supabase
+      .from('clientes')
+      .update({ estado: false })
+      .eq('id_cliente', id_cliente)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    return {
+      ok: true,
+      message: 'Cliente eliminado exitosamente'
+    } as DeleteResponse
   } catch (error) {
-    console.log(error);
-    throw new Error('Error eliminando cliente');
+    console.error('Error eliminando cliente:', error)
+    return {
+      ok: false,
+      message: 'Error al eliminar el cliente'
+    } as DeleteResponse
   }
-};
+}
