@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/supabase'
-import type { Poliza, Respuesta, CreatePolizaResponse, DeleteResponse } from '../interfaces/polizas_interface'
 
 export const getPolizasAction = async (id_correduria: string, pagina: number, limite: number) => {
   try {
@@ -62,7 +61,7 @@ export const getPolizaAction = async (id_poliza: string) => {
 export const createPolizaAction = async (formData: FormData) => {
   try {
     // Convertir FormData a objeto
-    const polizaData: Record<string, any> = {}
+    const polizaData: Record<string, unknown> = {}
     formData.forEach((value, key) => {
       if (key !== 'archivo_poliza') {
         polizaData[key] = value
@@ -117,7 +116,7 @@ export const updatePolizaAction = async (formData: FormData) => {
     const id_poliza = formData.get('id_poliza') as string
     
     // Convertir FormData a objeto
-    const polizaData: Record<string, any> = {}
+    const polizaData: Record<string, unknown> = {}
     formData.forEach((value, key) => {
       if (key !== 'id_poliza' && key !== 'archivo_poliza') {
         polizaData[key] = value
@@ -171,7 +170,7 @@ export const updatePolizaAction = async (formData: FormData) => {
 export const deletePolizaAction = async (id_poliza: string) => {
   try {
     // En lugar de eliminar, marcamos como inactiva
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('polizas')
       .update({ estado: false })
       .eq('id_poliza', id_poliza)

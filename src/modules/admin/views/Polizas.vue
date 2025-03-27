@@ -136,7 +136,7 @@
   const { data: response } = useQuery({
     queryKey: [{ action: 'polizas' }],
     queryFn: async () => {
-      return await getPolizasAction(id_correduria);
+      return await getPolizasAction(id_correduria, 1, 1000); // Página 1, límite alto para obtener todos
     },
   });
 
