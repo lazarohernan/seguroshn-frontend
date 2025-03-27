@@ -6,7 +6,24 @@ import { VueQueryPlugin } from '@tanstack/vue-query';
 import Toast from 'vue-toastification';
 import 'vue-toastification/dist/index.css';
 
+// Importar TokenManager para inicializarlo al arranque
+import { tokenManager } from '@/lib/supabase-enhanced';
+
 import './style.css';
+
+// Inicializar el sistema de gestión de tokens de Supabase y verificar su estado
+// Esto hará que el TokenManager inicie el listener de eventos y el refresco proactivo
+console.log('Supabase TokenManager iniciado', 
+  tokenManager ? 'Estado: Activo' : 'Estado: Error de inicialización');
+
+// Verificar sesión al inicio para activar el refresh proactivo si hay una sesión activa
+(async () => {
+  try {
+    await tokenManager.refreshToken();
+  } catch (err) {
+    console.log('No hay sesión activa para refrescar');
+  }
+})();
 
 // Configurar event listeners pasivos para mejorar el rendimiento de desplazamiento
 const supportsPassive = (() => {

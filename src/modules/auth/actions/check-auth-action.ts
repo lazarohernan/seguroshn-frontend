@@ -1,40 +1,21 @@
-import { supabaseAuth } from '@/api/supabaseClient';
+import { supabase } from '@/lib/supabase'
+import { withTokenRefresh } from '@/lib/supabase-enhanced'
 
-interface CheckError {
-  ok: boolean;
-}
-
-interface CheckSuccess {
-  ok: boolean;
-  id_usuario: string;
-}
-
-export const checkAuthAction = async (): Promise<CheckError | CheckSuccess> => {
+export const checkAuthAction = async () => {
   try {
-    const localAccessToken = localStorage.getItem('accessToken');
-    if ((localAccessToken && localAccessToken.length === 0) || !localAccessToken) {
-      return {
-        ok: false,
-      };
-    }
-
-    // Usar la API de Supabase directamente para verificar el token
-    const userData = await supabaseAuth.getUser(localAccessToken);
+    // Usamos withTokenRefresh para manejar automáticamente errores 401 y refresco de token
+    const { data, error } = await withTokenRefresh(() => supabase.auth.getSession())
     
-    if (!userData || !userData.id) {
-      return {
-        ok: false,
-      };
-    }
-
+    if (error) throw error
+    if (!data.session) return { ok: false }
+    
     return {
       ok: true,
-      id_usuario: userData.id,
-    };
+      id_usuario: data.session.user.id,
+      email: data.session.user.email
+    }
   } catch (error) {
-    console.error('Error al verificar sesión:', error);
-    return {
-      ok: false,
-    };
+    console.error('Error al verificar autenticación:', error)
+    return { ok: false }
   }
-};
+}
