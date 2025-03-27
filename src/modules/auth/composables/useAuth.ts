@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
+import { withTokenRefresh, tokenManager } from '@/lib/supabase-enhanced'
 import { useAuthStore } from '../stores/auth-store'
 import { handleAuthError } from '../utils/error-handler'
 import type { AuthError, User } from '@supabase/supabase-js'
@@ -23,6 +24,7 @@ export function useAuth() {
       loading.value = true
       error.value = null
 
+      // Login no requiere withTokenRefresh porque estamos obteniendo nuevos tokens
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -31,9 +33,14 @@ export function useAuth() {
       if (authError) throw authError
       if (!data.session) throw new Error('No se pudo iniciar sesión')
 
+      // Asegurar que el token manager está activo después del login
+      console.log('Login exitoso, activando TokenManager')
+      tokenManager.refreshToken()
+      
       authStore.setSession(data.session)
       return true
     } catch (err) {
+      console.error('Error de login:', err)
       error.value = handleAuthError(err as AuthError)
       return false
     } finally {
@@ -86,10 +93,15 @@ export function useAuth() {
 
   const getCurrentUser = async (): Promise<User | null> => {
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      // Usar withTokenRefresh para manejar automáticamente errores 401
+      const { data, error: authError } = await withTokenRefresh(() => 
+        supabase.auth.getUser()
+      )
+      
       if (authError) throw authError
-      return user
+      return data.user
     } catch (err) {
+      console.error('Error al obtener usuario actual:', err)
       error.value = handleAuthError(err as AuthError)
       return null
     }
