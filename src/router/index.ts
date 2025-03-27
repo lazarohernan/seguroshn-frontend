@@ -1,11 +1,42 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { authRoutes } from '@/modules/auth/routes';
 import { adminRoutes } from '@/modules/admin/routes';
-import { commonRoutes } from '@/modules/common/routes';
 import { authMiddleware } from '@/modules/auth/middleware/auth.middleware';
-import type { RouteRecordRaw } from 'vue-router';
 
-const routes: RouteRecordRaw[] = [
+// Rutas comunes definidas directamente
+const commonRoutes = [
+  {
+    path: '/registration-pending',
+    name: 'registration-pending',
+    component: () => import('@/modules/common/pages/RegistrationPending.vue')
+  },
+  {
+    path: '/check-registration-status',
+    name: 'check-registration-status',
+    component: () => import('@/modules/common/pages/CheckRegistrationStatus.vue')
+  },
+  {
+    path: '/onboarding',
+    name: 'onboarding',
+    component: () => import('@/modules/common/pages/Onboarding.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/terminos-de-uso',
+    name: 'terminos-de-uso',
+    component: () => import('@/modules/common/pages/TerminosDeUso.vue'),
+    meta: { requiresGuest: true }
+  },
+  {
+    path: '/politica-de-privacidad',
+    name: 'politica-de-privacidad',
+    component: () => import('@/modules/common/pages/PoliticaDePrivacidad.vue'),
+    meta: { requiresGuest: true }
+  }
+];
+
+// Definir rutas como un array
+const routes = [
   {
     path: '/',
     redirect: '/dashboard'
@@ -16,7 +47,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
-    component: () => import('@/modules/common/pages/NotFound.vue')
+    component: () => import('../modules/common/pages/NotFound.vue')
   }
 ];
 
