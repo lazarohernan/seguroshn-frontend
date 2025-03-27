@@ -6,7 +6,7 @@ export const authMiddleware = async (
   to: RouteLocationNormalized,
   from: RouteLocationNormalized,
   next: NavigationGuardNext
-) => {
+): Promise<void> => {
   const authStore = useAuthStore()
   
   // Si estamos verificando el estado de autenticación, esperar

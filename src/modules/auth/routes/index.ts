@@ -25,9 +25,9 @@ export const authRoutes: RouteRecordRaw[] = [
         meta: { requiresGuest: true }
       },
       {
-        path: 'reset-password',
-        name: 'reset-password',
-        component: () => import('../views/ResetPassword.vue'),
+        path: 'recover-password',
+        name: 'recover-password',
+        component: () => import('../views/RecoverPassword.vue'),
         meta: { requiresGuest: true }
       }
     ]

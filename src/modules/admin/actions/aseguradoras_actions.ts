@@ -1,4 +1,4 @@
-import { api } from '@/api/axiosInstance';
+import { supabase } from '@/lib/supabase'
 import type {
   Aseguradora,
   CreateAseguradoraResponse,
@@ -7,103 +7,60 @@ import type {
   RespuestaSimple,
 } from '../interfaces/aseguradora_interface';
 
-export const getAseguradorasAction = async (id_correduria: string) => {
-  try {
-    const { data } = await api.get<Respuesta>(`/aseguradoras/?id_correduria=${id_correduria}`);
+export const getAseguradoras = async (id_correduria: string) => {
+  const { data, error } = await supabase
+    .from('aseguradoras')
+    .select('*')
+    .eq('id_correduria', id_correduria)
 
-    return data;
-  } catch (error) {
-    console.log(error);
-    throw new Error('Error getting aseguradoras');
-  }
-};
+  if (error) throw error
+  return data
+}
 
 export const getAseguradoraAction = async (id_aseguradora: string) => {
   try {
-    const { data } = await api.get<RespuestaSimple>(`/aseguradoras/${id_aseguradora}`);
+    const { data } = await supabase
+      .from('aseguradoras')
+      .select('*')
+      .eq('id_aseguradora', id_aseguradora)
+      .single()
 
-    return data;
+    return data
   } catch (error) {
-    console.log(error);
-    throw new Error('Error getting specific aseguradora');
+    console.log(error)
+    throw new Error('Error getting specific aseguradora')
   }
-};
+}
 
-export const createAseguradoraAction = async (aseguradora: Partial<Aseguradora>) => {
-  try {
-    const formData = new FormData();
-    formData.append('id_correduria', aseguradora.id_correduria ?? '');
-    formData.append('nombre', aseguradora.nombre ?? '');
-    formData.append('descripcion', aseguradora.descripcion ?? '');
-    formData.append('nombre_gestor', aseguradora.nombre_gestor ?? '');
-    formData.append('tel_gestor', aseguradora.tel_gestor ?? '');
-    formData.append('correo_gestor', aseguradora.correo_gestor ?? '');
+export const createAseguradora = async (aseguradora: any) => {
+  const { data, error } = await supabase
+    .from('aseguradoras')
+    .insert(aseguradora)
+    .select()
+    .single()
 
-    if (aseguradora.logo instanceof File) {
-      formData.append('logo', aseguradora.logo); // Solo si es un archivo
-    }
+  if (error) throw error
+  return data
+}
 
-    const { data } = await api.post<CreateAseguradoraResponse>(`/aseguradoras/`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data', //Necesaria para adjuntar archivos
-      },
-    });
+export const updateAseguradora = async (id: string, aseguradora: any) => {
+  const { data, error } = await supabase
+    .from('aseguradoras')
+    .update(aseguradora)
+    .eq('id_aseguradora', id)
+    .select()
+    .single()
 
-    if (data.ok) {
-      return data;
-    } else {
-      return {
-        ok: false,
-        message: 'Error al agregar el registro',
-      };
-    }
-  } catch (error) {
-    console.log(error);
-    throw new Error('Error creando aseguradora');
-  }
-};
+  if (error) throw error
+  return data
+}
 
-export const updateAseguradoraAction = async (formData: FormData) => {
-  const idAseguradora = formData.get('id_aseguradora');
-  try {
-    const { data } = await api.put<CreateAseguradoraResponse>(
-      `/aseguradoras/${idAseguradora}`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data', //Necesaria para adjuntar archivos
-        },
-      },
-    );
+export const deleteAseguradora = async (id: string) => {
+  const { error } = await supabase
+    .from('aseguradoras')
+    .delete()
+    .eq('id_aseguradora', id)
 
-    if (data.ok) {
-      return data;
-    } else {
-      return {
-        ok: false,
-        message: 'Error al actualizar el registro',
-      };
-    }
-  } catch (error) {
-    console.log(error);
-    throw new Error('Error actualizando aseguradora');
-  }
-};
-
-export const deleteAseguradoraAction = async (idAseguradora: string) => {
-  try {
-    const { data } = await api.patch<DeleteResponse>(`/aseguradoras/${idAseguradora}`);
-
-    if (data.ok) {
-      return data;
-    } else {
-      return {
-        ok: false,
-        message: 'Error al borrar el registro',
-      };
-    }
-  } catch (error) {
-    console.log(error);
-    throw new Error('Error borrando aseguradora');
-  }
-};
+  if (error) throw error
+  return true
+}

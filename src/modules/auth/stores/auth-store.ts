@@ -54,6 +54,18 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
+  const logout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      clearSession();
+      return true;
+    } catch (error) {
+      console.error('Error during logout:', error);
+      return false;
+    }
+  };
+
   return {
     // Estado
     authStatus,
@@ -73,6 +85,7 @@ export const useAuthStore = defineStore('auth', () => {
     // Acciones
     setSession,
     clearSession,
-    checkAuthStatus
+    checkAuthStatus,
+    logout
   };
 });
