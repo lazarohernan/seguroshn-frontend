@@ -1,12 +1,4 @@
-// Agregar tipos para environment variables
-declare global {
-  interface ImportMeta {
-    env: {
-      VITE_SUPABASE_URL: string;
-      VITE_SUPABASE_ANON_KEY: string;
-    }
-  }
-}
+// Usa la interfaz ImportMetaEnv definida en src/vite-env.d.ts
 
 // URL de la API y clave anónima de Supabase
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://edejazcguedqylhchwjg.supabase.co'

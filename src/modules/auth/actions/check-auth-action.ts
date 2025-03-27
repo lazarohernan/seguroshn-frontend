@@ -1,5 +1,4 @@
 import { supabaseAuth } from '@/api/supabaseClient';
-import type { CheckStatusResponse } from '../interfaces';
 
 interface CheckError {
   ok: boolean;
