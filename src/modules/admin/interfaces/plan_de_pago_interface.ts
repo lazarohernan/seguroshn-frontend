@@ -30,6 +30,7 @@ export interface PlanDePago {
   numero_poliza: string;
   archivo_poliza?: string | null;
   observacion?: string | null;
+  status?: string;
 
   // Propiedades adicionales para la UI (no están en la BD)
   nombre_cliente?: string;
@@ -50,6 +51,7 @@ export interface CreatePlanDePagoDTO {
   numero_poliza: string;
   archivo_poliza?: string | File;
   observacion?: string;
+  status?: string;
 }
 
 /**
@@ -68,6 +70,7 @@ export interface UpdatePlanDePagoDTO {
   numero_poliza?: string;
   archivo_poliza?: string | File;
   observacion?: string;
+  status?: string;
 }
 
 export interface CreatePlanDePagoResponse {
