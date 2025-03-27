@@ -1,6 +1,5 @@
-import { api } from '@/api/axiosInstance';
+import { supabaseAuth } from '@/api/supabaseClient';
 import type { CheckStatusResponse } from '../interfaces';
-import { isAxiosError } from 'axios';
 
 interface CheckError {
   ok: boolean;
@@ -20,19 +19,23 @@ export const checkAuthAction = async (): Promise<CheckError | CheckSuccess> => {
       };
     }
 
-    const { data } = await api.get<CheckStatusResponse>('/auth/check-auth');
-
-    return {
-      ok: data.ok,
-      id_usuario: data.id_usuario,
-    };
-  } catch (error) {
-    if (isAxiosError(error) && error.response?.status === 401) {
+    // Usar la API de Supabase directamente para verificar el token
+    const userData = await supabaseAuth.getUser(localAccessToken);
+    
+    if (!userData || !userData.id) {
       return {
         ok: false,
       };
     }
 
-    throw new Error('Error al comprobar la autenticación');
+    return {
+      ok: true,
+      id_usuario: userData.id,
+    };
+  } catch (error) {
+    console.error('Error al verificar sesión:', error);
+    return {
+      ok: false,
+    };
   }
 };
