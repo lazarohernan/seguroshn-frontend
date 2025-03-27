@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { CreateClienteResponse, DeleteResponse, Respuesta, Cliente } from '../interfaces/cliente_interface'
+import type { CreateClienteResponse, DeleteResponse, Respuesta } from '../interfaces/cliente_interface'
 
 export const getClientesAction = async (id_correduria: string, pagina: number, limite: number) => {
   try {
@@ -18,8 +18,9 @@ export const getClientesAction = async (id_correduria: string, pagina: number, l
     return {
       ok: true,
       clientes: data || [],
-      total: count || 0
-    } as Respuesta
+      total: count || 0,
+      message: 'Clientes obtenidos exitosamente'
+    }
   } catch (error) {
     console.error('Error obteniendo clientes:', error)
     return {
@@ -34,7 +35,7 @@ export const getClientesAction = async (id_correduria: string, pagina: number, l
 export const createClienteAction = async (formData: FormData) => {
   try {
     // Convertir FormData a objeto
-    const clienteData: Record<string, any> = {}
+    const clienteData: Record<string, unknown> = {}
     formData.forEach((value, key) => {
       clienteData[key] = value
     })
@@ -46,7 +47,7 @@ export const createClienteAction = async (formData: FormData) => {
       if (avatarFile.size > 0) {
         const fileExt = avatarFile.name.split('.').pop()
         const fileName = `${Date.now()}.${fileExt}`
-        const { data: fileData, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('avatares')
           .upload(`clientes/${fileName}`, avatarFile)
 
@@ -70,9 +71,9 @@ export const createClienteAction = async (formData: FormData) => {
 
     return {
       ok: true,
-      cliente: data,
+      data: data,
       message: 'Cliente creado exitosamente'
-    } as CreateClienteResponse
+    }
   } catch (error) {
     console.error('Error creando cliente:', error)
     return {
@@ -87,7 +88,7 @@ export const updateClienteAction = async (formData: FormData) => {
     const id_cliente = formData.get('id_cliente') as string
     
     // Convertir FormData a objeto
-    const clienteData: Record<string, any> = {}
+    const clienteData: Record<string, unknown> = {}
     formData.forEach((value, key) => {
       if (key !== 'id_cliente') {
         clienteData[key] = value
@@ -101,7 +102,7 @@ export const updateClienteAction = async (formData: FormData) => {
       if (avatarFile.size > 0) {
         const fileExt = avatarFile.name.split('.').pop()
         const fileName = `${Date.now()}.${fileExt}`
-        const { data: fileData, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('avatares')
           .upload(`clientes/${fileName}`, avatarFile)
 
@@ -126,9 +127,9 @@ export const updateClienteAction = async (formData: FormData) => {
 
     return {
       ok: true,
-      cliente: data,
+      data: data,
       message: 'Cliente actualizado exitosamente'
-    } as CreateClienteResponse
+    }
   } catch (error) {
     console.error('Error actualizando cliente:', error)
     return {
@@ -141,7 +142,7 @@ export const updateClienteAction = async (formData: FormData) => {
 export const deleteClienteAction = async (id_cliente: string) => {
   try {
     // En lugar de eliminar, marcamos como inactivo
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('clientes')
       .update({ estado: false })
       .eq('id_cliente', id_cliente)

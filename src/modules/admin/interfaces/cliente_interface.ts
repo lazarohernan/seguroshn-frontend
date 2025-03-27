@@ -1,10 +1,8 @@
 export interface Respuesta {
-  message: string;
-  paginaActual: number;
-  totalPaginas: number;
-  limite: number;
-  totalRegistros: number;
-  data: Cliente[];
+  ok: boolean;
+  clientes: Cliente[];
+  total: number;
+  message?: string;
 }
 
 export interface DeleteResponse {
