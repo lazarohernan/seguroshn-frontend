@@ -1,119 +1,78 @@
 import { ref, computed } from 'vue';
-import { useLocalStorage } from '@vueuse/core';
-
 import { defineStore } from 'pinia';
 import { AuthStatus } from '../interfaces';
-import { checkAuthAction, loginAction, registerAction } from '../actions';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 
 export const useAuthStore = defineStore('auth', () => {
   const authStatus = ref<AuthStatus>(AuthStatus.Checking);
-  const accessToken = ref(useLocalStorage('accessToken', ''));
-  const refreshToken = ref(useLocalStorage('refreshToken', ''));
-  const nombre = ref(useLocalStorage('nombre', ''));
-  const correo = ref(useLocalStorage('correo', ''));
-  const foto = ref(useLocalStorage('foto', ''));
-  const id_correduria = ref(useLocalStorage('id_correduria', ''));
+  const session = ref<Session | null>(null);
+  const userMetadata = ref<{
+    nombre?: string;
+    correo?: string;
+    foto?: string;
+    id_correduria?: string;
+  } | null>(null);
 
-  //Funciones
-  // LOGIN
-  const login = async (email: string, password: string) => {
-    try {
-      const loginResp = await loginAction(email, password);
-      if (!loginResp.ok) {
-        return logout();
-      }
-
-      //Esta condición es NECESARIA para poder acceder a los valores dentro
-      //de LoginSuccess
-      if ('accessToken' in loginResp && 'refreshToken' in loginResp) {
-        accessToken.value = loginResp.accessToken;
-        refreshToken.value = loginResp.refreshToken;
-        nombre.value = loginResp.nombre;
-        correo.value = loginResp.correo;
-        foto.value = loginResp.foto;
-        id_correduria.value = loginResp.id_correduria;
-      }
-      authStatus.value = AuthStatus.Authenticated;
-
-      return true;
-    } catch (error) {
-      console.log(error);
-      return logout();
-    }
+  // Getters
+  const isAuthenticated = computed(() => authStatus.value === AuthStatus.Authenticated);
+  const isChecking = computed(() => authStatus.value === AuthStatus.Checking);
+  
+  // Acciones
+  const setSession = async (newSession: Session) => {
+    session.value = newSession;
+    userMetadata.value = {
+      nombre: newSession.user?.user_metadata?.full_name,
+      correo: newSession.user?.email,
+      foto: newSession.user?.user_metadata?.avatar_url,
+      id_correduria: newSession.user?.user_metadata?.id_correduria
+    };
+    authStatus.value = AuthStatus.Authenticated;
   };
 
-  //REGISTER
-  const register = async (fullName: string, email: string, password: string) => {
-    try {
-      const registerResp = await registerAction(fullName, email, password);
-      if (!registerResp.ok) {
-        return logout();
-      }
-
-      if ('refreshToken' in registerResp && 'accessToken' in registerResp) {
-        accessToken.value = registerResp.accessToken;
-        refreshToken.value = registerResp.refreshToken;
-      }
-
-      authStatus.value = AuthStatus.Authenticated;
-      return true;
-    } catch (error) {
-      console.log(error);
-      return logout();
-    }
-  };
-
-  //CHECK AUTH STATUS (RENEW TOKEN)
-  const checkAuthStatus = async (): Promise<boolean> => {
-    try {
-      const statusResp = await checkAuthAction();
-
-      if (!statusResp.ok) {
-        return logout();
-      }
-
-      if ('ok' in statusResp && 'id_usuario' in statusResp) {
-        authStatus.value = AuthStatus.Authenticated;
-      }
-      return true;
-    } catch (error) {
-      console.error(error);
-      return logout();
-    }
-  };
-
-  //LOGOUT
-  const logout = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    accessToken.value = '';
-    refreshToken.value = '';
-    nombre.value = '';
-    correo.value = '';
-    foto.value = '';
-    id_correduria.value = '';
+  const clearSession = () => {
+    session.value = null;
+    userMetadata.value = null;
     authStatus.value = AuthStatus.Unauthenticated;
-    return false;
+  };
+
+  const checkAuthStatus = async () => {
+    try {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      
+      if (currentSession) {
+        await setSession(currentSession);
+        return true;
+      } else {
+        clearSession();
+        return false;
+      }
+    } catch (error) {
+      console.error('Error checking auth status:', error);
+      clearSession();
+      return false;
+    }
   };
 
   return {
-    //Properties
-    accessToken,
-    refreshToken,
+    // Estado
     authStatus,
-    nombre,
-    correo,
-    foto,
-    id_correduria,
-
-    //Getters
-    isChecking: computed(() => authStatus.value === AuthStatus.Checking),
-    isAuthenticated: computed(() => authStatus.value === AuthStatus.Authenticated),
-
-    //Actions
-    login,
-    logout,
-    register,
-    checkAuthStatus,
+    session,
+    userMetadata,
+    
+    // Getters
+    isAuthenticated,
+    isChecking,
+    
+    // Computed properties para mantener compatibilidad con código existente
+    nombre: computed(() => userMetadata.value?.nombre ?? ''),
+    correo: computed(() => userMetadata.value?.correo ?? ''),
+    foto: computed(() => userMetadata.value?.foto ?? ''),
+    id_correduria: computed(() => userMetadata.value?.id_correduria ?? ''),
+    
+    // Acciones
+    setSession,
+    clearSession,
+    checkAuthStatus
   };
 });

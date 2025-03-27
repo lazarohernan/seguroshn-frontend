@@ -12,6 +12,7 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.39.8",
     "@tanstack/vue-query": "^5.62.16",
     "@tanstack/vue-query-devtools": "^5.62.16",
     "@vueuse/core": "^10.7.2",
