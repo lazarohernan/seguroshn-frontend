@@ -100,8 +100,8 @@ export default defineComponent({
       isLoading.value = true;
       try {
         const response = await getClientesAction(id_correduria, page.value, itemsPerPage.value);
-        clientes.value = response.data;
-        totalPages.value = response.totalPaginas;
+        clientes.value = response.clientes;
+        totalPages.value = Math.ceil(response.total / itemsPerPage.value);
       } catch (error) {
         console.error('Error al cargar clientes:', error);
         // En caso de error, mostrar lista vacía

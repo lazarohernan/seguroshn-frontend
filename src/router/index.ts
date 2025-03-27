@@ -35,7 +35,7 @@ const commonRoutes = [
   }
 ];
 
-// Definir rutas como un array
+// Definir rutas como un array simple de objetos
 const routes = [
   {
     path: '/',

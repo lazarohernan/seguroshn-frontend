@@ -1,13 +1,14 @@
 import type { RouteRecordRaw } from 'vue-router';
 import isAuthenticatedGuard from '@/modules/auth/guards/is-authenticated-guard';
 
-export const adminRoutes: RouteRecordRaw = {
-  path: '/admin',
-  name: 'admin',
-  beforeEnter: isAuthenticatedGuard,
-  redirect: { name: 'dashboard' },
-  component: () => import('@/modules/admin/layout/AdminLayout.vue'),
-  children: [
+export const adminRoutes: RouteRecordRaw[] = [
+  {
+    path: '/admin',
+    name: 'admin',
+    beforeEnter: isAuthenticatedGuard,
+    redirect: { name: 'dashboard' },
+    component: () => import('@/modules/admin/layout/AdminLayout.vue'),
+    children: [
     {
       path: '/dashboard',
       name: 'dashboard',
@@ -49,5 +50,6 @@ export const adminRoutes: RouteRecordRaw = {
       component: () => import('@/modules/admin/views/Notificaciones.vue'),
       // meta: { requiresAuth: true }
     },
-  ],
-};
+    ],
+  }
+];
