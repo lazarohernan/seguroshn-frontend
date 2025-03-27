@@ -123,25 +123,61 @@ export class TokenManager {
 
   /**
    * Intenta ejecutar una operación y refresca el token si falla con 401
+   * 
+   * Detecta varios tipos de errores relacionados con autenticación:
+   * - Error 401 explícito
+   * - Código PGRST301 de PostgREST 
+   * - Errores de JWT expirado
+   * - Errores de token inválido
    */
   public async executeWithTokenRefresh<T>(operation: () => Promise<T>): Promise<T> {
     try {
       // Intentar ejecutar la operación original
       return await operation()
     } catch (error: unknown) {
-      // Verificar si es un error 401
-      const err = error as { status?: number; code?: string; message?: string }
+      // Verificar si es un error de autenticación
+      const err = error as { 
+        status?: number; 
+        code?: string; 
+        message?: string;
+        error?: string;
+        error_description?: string;
+      }
       
-      if (err.status === 401 || err.code === 'PGRST301' || 
-          (err.message && err.message.includes('JWT expired'))) {
-        console.log('Detectado error 401, intentando refrescar token')
+      const isAuthError = 
+        // Error 401
+        err.status === 401 || 
+        // Error código PostgREST
+        err.code === 'PGRST301' || 
+        // Error JWT expirado en mensaje
+        (err.message && (
+          err.message.includes('JWT expired') || 
+          err.message.includes('Invalid token') ||
+          err.message.includes('JWT must be provided')
+        )) ||
+        // Error de token inválido
+        (err.error === 'invalid_grant') ||
+        // Error API key
+        (err.message && err.message.includes('Invalid API key'));
+      
+      if (isAuthError) {
+        console.log('Detectado error de autenticación, intentando refrescar token', err)
         
-        // Intentar refrescar el token
-        const session = await this.refreshToken()
-        
-        if (session) {
-          // Reintentar la operación original
-          return await operation()
+        try {
+          // Intentar refrescar el token
+          const session = await this.refreshToken()
+          
+          if (session) {
+            console.log('Token refrescado exitosamente, reintentando operación')
+            // Reintentar la operación original
+            return await operation()
+          } else {
+            console.error('Fallo al refrescar el token, error de autenticación persistente')
+            throw new Error('No se pudo refrescar la sesión. Inicie sesión nuevamente.')
+          }
+        } catch (refreshError) {
+          console.error('Error crítico al refrescar token:', refreshError)
+          throw new Error('Error de autenticación. Por favor, inicie sesión nuevamente.')
         }
       }
       
