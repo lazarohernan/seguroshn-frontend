@@ -24,21 +24,6 @@ export const loginAction = async (
   try {
     console.log('Iniciando proceso de login con:', email);
     
-    // Primero verificamos directamente si el email existe en la tabla de superadmins
-    // antes de hacer la autenticación
-    console.log('Pre-verificando si es superadmin...');
-    const { data: superadminPreCheck } = await supabase
-      .from('superadmins')
-      .select('email, auth_id')
-      .eq('email', email)
-      .eq('estado', true)
-      .single();
-      
-    console.log('Resultado pre-verificación superadmin:', superadminPreCheck);
-    
-    // Si es potencialmente un superadmin, vamos a manejar el proceso de manera específica
-    const isSuperadminAttempt = !!superadminPreCheck;
-    
     // Limpiar cualquier sesión anterior
     try {
       await supabase.auth.signOut()
@@ -85,36 +70,7 @@ export const loginAction = async (
       localStorage.setItem('sb-refresh-token', authData.session.refresh_token);
     }
 
-    // Si intentamos iniciar sesión como superadmin y la autenticación fue exitosa
-    if (isSuperadminAttempt) {
-      console.log('Obteniendo datos completos del superadmin...');
-      const { data: superadmin, error: superadminError } = await supabase
-        .from('superadmins')
-        .select('*')
-        .eq('email', email)
-        .eq('estado', true)
-        .single();
-
-      if (superadminError) {
-        console.error('Error al obtener datos del superadmin:', superadminError);
-        throw superadminError;
-      }
-
-      if (superadmin) {
-        console.log('Usuario confirmado como superadmin:', superadmin);
-        return {
-          ok: true,
-          id: authData.user.id,
-          email,
-          nombre: `${superadmin.nombres} ${superadmin.apellidos}`,
-          foto: superadmin.avatar,
-          rol: 'superadmin',
-          es_primer_login: false
-        };
-      }
-    }
-
-    // Si no es superadmin o falló la verificación, continuamos con los usuarios de correduría
+    // Verificamos en usuarios_corredurias (que ahora incluye superadmins)
     console.log('Verificando si es usuario de correduría...');
     const { data: usuarioCorreduria, error: usuarioError } = await supabase
       .from('usuarios_corredurias')
@@ -128,7 +84,16 @@ export const loginAction = async (
     }
 
     if (usuarioCorreduria) {
-      console.log('Usuario identificado como usuario de correduría:', usuarioCorreduria);
+      console.log('Usuario identificado:', usuarioCorreduria);
+      
+      // Determinamos el rol basado en el valor numérico
+      let rolString = 'tecnico';
+      if (usuarioCorreduria.rol === 3) {
+        rolString = 'superadmin';
+      } else if (usuarioCorreduria.rol === 1) {
+        rolString = 'admin';
+      }
+      
       return {
         ok: true,
         id: authData.user.id,
@@ -136,7 +101,7 @@ export const loginAction = async (
         nombre: `${usuarioCorreduria.nombres || ''} ${usuarioCorreduria.apellidos || ''}`,
         foto: usuarioCorreduria.avatar,
         id_correduria: usuarioCorreduria.id_correduria,
-        rol: usuarioCorreduria.rol === 1 ? 'admin' : 'tecnico',
+        rol: rolString,
         es_primer_login: !usuarioCorreduria.fecha_modificado
       };
     }

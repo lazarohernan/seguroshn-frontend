@@ -4,6 +4,8 @@ import { AuthStatus } from '../interfaces';
 import { loginAction, registerAction } from '../actions';
 import { supabase } from '@/lib/supabase';
 
+export { AuthStatus };
+
 export const useAuthStore = defineStore('auth', () => {
   const authStatus = ref<AuthStatus>(AuthStatus.Checking);
   const user = ref<{
@@ -59,7 +61,7 @@ export const useAuthStore = defineStore('auth', () => {
       console.log('Store: Respuesta de loginAction:', loginResp);
 
       if (!loginResp.ok) {
-        console.error('Store: Login fallido:', loginResp.message);
+        console.error('Store: Login fallido:', loginResp.ok ? '' : 'Error de autenticación');
         return false;
       }
 
@@ -128,26 +130,7 @@ export const useAuthStore = defineStore('auth', () => {
         return logout();
       }
 
-      // Verificar si es superadmin primero
-      const { data: superadmin } = await supabase
-        .from('superadmins')
-        .select('*')
-        .eq('email', session.user.email)
-        .single();
-
-      if (superadmin) {
-        user.value = {
-          id: session.user.id,
-          email: session.user.email!,
-          nombre: `${superadmin.nombres} ${superadmin.apellidos}`,
-          foto: superadmin.avatar,
-          rol: 'superadmin',
-        };
-        authStatus.value = AuthStatus.Authenticated;
-        return true;
-      }
-
-      // Verificar en usuarios_corredurias
+      // Verificar en usuarios_corredurias - ahora incluye superadmins (rol = 3)
       const { data: usuarioCorreduria } = await supabase
         .from('usuarios_corredurias')
         .select('*')
@@ -155,12 +138,21 @@ export const useAuthStore = defineStore('auth', () => {
         .single();
 
       if (usuarioCorreduria) {
+        // Determinar el rol basado en el valor numérico
+        let rolString = 'tecnico';
+        if (usuarioCorreduria.rol === 3) {
+          rolString = 'superadmin';
+        } else if (usuarioCorreduria.rol === 1) {
+          rolString = 'admin';
+        }
+
         user.value = {
           id: session.user.id,
           email: session.user.email!,
           nombre: usuarioCorreduria.nombre,
           foto: usuarioCorreduria.foto,
-          rol: usuarioCorreduria.rol === 1 ? 'admin' : 'tecnico',
+          id_correduria: usuarioCorreduria.id_correduria,
+          rol: rolString,
           es_primer_login: !usuarioCorreduria.fecha_modificado,
         };
         authStatus.value = AuthStatus.Authenticated;

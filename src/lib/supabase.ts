@@ -5,7 +5,6 @@ export type Tables = Database['public']['Tables']
 export type Enums = Database['public']['Enums']
 
 // Tipos específicos para cada tabla
-export type Superadmin = Tables['superadmins']['Row']
 export type Usuario = Tables['usuarios_corredurias']['Row']
 export type Cliente = Tables['clientes']['Row']
 export type Poliza = Tables['polizas']['Row']
@@ -53,4 +52,4 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
       eventsPerSecond: 5
     }
   }
-}) 
+})
