@@ -40,3 +40,9 @@ lerna-debug.log*
 
 # Cline documentation
 cline_docs/
+
+# Database files
+creacion_tablas_seguros_db.sql
+seguros_db
+supabase_schema.sql
+supabase_schema_fixed.sql

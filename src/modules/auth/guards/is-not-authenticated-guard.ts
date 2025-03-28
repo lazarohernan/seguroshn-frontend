@@ -3,8 +3,8 @@ import { AuthStatus } from '../interfaces';
 import { useAuthStore } from '../stores/auth-store';
 
 const isNotAuthenticatedGuard = async (
-  to: RouteLocationNormalized,
-  from: RouteLocationNormalized,
+  _to: RouteLocationNormalized,
+  _from: RouteLocationNormalized,
   next: NavigationGuardNext,
 ) => {
   const authStore = useAuthStore();

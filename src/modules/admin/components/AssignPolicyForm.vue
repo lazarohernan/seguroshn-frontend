@@ -483,7 +483,7 @@
 
   onMounted(async () => {
     try {
-      const response = await getPolizasAction(idCorreduria ?? '');
+      const response = await getPolizasAction(idCorreduria ?? '', 1, 100);
       polizas.value = response.data;
 
       if (props.mode === 'view' && props.planDePagoId) {
