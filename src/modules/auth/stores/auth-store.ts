@@ -2,6 +2,7 @@ import { ref, computed } from 'vue';
 import { defineStore } from 'pinia';
 import { AuthStatus } from '../interfaces';
 import { loginAction, registerAction } from '../actions';
+import { LoginError } from '../actions/login.action';
 import { supabase } from '@/lib/supabase';
 
 export { AuthStatus };
@@ -61,7 +62,7 @@ export const useAuthStore = defineStore('auth', () => {
       console.log('Store: Respuesta de loginAction:', loginResp);
 
       if (!loginResp.ok) {
-        console.error('Store: Login fallido:', loginResp.ok ? '' : 'Error de autenticación');
+        console.error('Store: Login fallido:', 'ok' in loginResp && !loginResp.ok ? (loginResp as LoginError).message : 'Error de autenticación');
         return false;
       }
 
@@ -80,30 +81,40 @@ export const useAuthStore = defineStore('auth', () => {
 
       console.log('Store: Sesión establecida correctamente');
 
-      if ('id' in loginResp) {
-        user.value = {
-          id: loginResp.id,
-          email: loginResp.email,
-          nombre: loginResp.nombre,
-          foto: loginResp.foto,
-          id_correduria: loginResp.id_correduria,
-          rol: loginResp.rol,
-          es_primer_login: loginResp.es_primer_login,
-        };
-        authStatus.value = AuthStatus.Authenticated;
+      try {
+        if ('id' in loginResp) {
+          console.log('Store: Procesando datos de usuario:', loginResp);
+          
+          user.value = {
+            id: loginResp.id,
+            email: loginResp.email,
+            nombre: loginResp.nombre || 'Usuario',
+            foto: loginResp.foto,
+            id_correduria: loginResp.id_correduria,
+            rol: loginResp.rol,
+            es_primer_login: loginResp.es_primer_login,
+          };
+          
+          console.log('Store: Objeto de usuario creado:', user.value);
+          
+          authStatus.value = AuthStatus.Authenticated;
 
-        // Guardar tokens en localStorage
-        if (session?.access_token && session?.refresh_token) {
-          localStorage.setItem('sb-access-token', session.access_token);
-          localStorage.setItem('sb-refresh-token', session.refresh_token);
+          // Guardar tokens en localStorage
+          if (session?.access_token && session?.refresh_token) {
+            localStorage.setItem('sb-access-token', session.access_token);
+            localStorage.setItem('sb-refresh-token', session.refresh_token);
+          }
+
+          console.log('Store: Usuario autenticado correctamente');
+
+          // Si es primer login, redirigir a cambio de contraseña
+          if (loginResp.es_primer_login) {
+            return 'cambio-password';
+          }
         }
-
-        console.log('Store: Usuario autenticado correctamente');
-
-        // Si es primer login, redirigir a cambio de contraseña
-        if (loginResp.es_primer_login) {
-          return 'cambio-password';
-        }
+      } catch (err) {
+        console.error('Error en el proceso de login:', err);
+        return clearSession();
       }
 
       return true;
@@ -130,9 +141,9 @@ export const useAuthStore = defineStore('auth', () => {
         return logout();
       }
 
-      // Verificar en usuarios_corredurias - ahora incluye superadmins (rol = 3)
+      // Verificar en vista_usuarios_completa - ahora incluye superadmins (rol = 3)
       const { data: usuarioCorreduria, error: usuarioError } = await supabase
-        .from('usuarios_corredurias')
+        .from('vista_usuarios_completa')
         .select('*')
         .eq('correo', session.user.email)
         .eq('estado', true)
@@ -146,9 +157,11 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       if (!usuarioCorreduria) {
-        console.warn('No se encontró el usuario en la tabla usuarios_corredurias');
+        console.warn('No se encontró el usuario en la tabla de usuarios');
         return logout();
       }
+
+      console.log('Datos del usuario recuperados:', usuarioCorreduria);
 
       // Determinar el rol basado en el valor numérico
       let rolString = 'tecnico';
@@ -163,11 +176,11 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = {
         id: session.user.id,
         email: session.user.email!,
-        nombre: `${usuarioCorreduria.nombres || ''} ${usuarioCorreduria.apellidos || ''}`,
-        foto: usuarioCorreduria.avatar,
+        nombre: usuarioCorreduria.nombre || '',
+        foto: usuarioCorreduria.foto,
         id_correduria: usuarioCorreduria.id_correduria,
         rol: rolString,
-        es_primer_login: !usuarioCorreduria.fecha_modificado,
+        es_primer_login: false, // Por defecto se considera que no es primer login
       };
       
       authStatus.value = AuthStatus.Authenticated;

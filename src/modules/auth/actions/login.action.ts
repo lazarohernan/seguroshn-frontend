@@ -73,17 +73,31 @@ export const loginAction = async (
     // Verificamos en usuarios_corredurias (que ahora incluye superadmins)
     console.log('Verificando usuario en el sistema...');
     
-    // Obtener información del usuario de la base de datos
-    const { data: usuarioCorreduria, error: usuarioError } = await supabase
-      .from('usuarios_corredurias')
+    // Agregamos logs más detallados para diagnóstico
+    console.log('ID del usuario autenticado:', authData.user.id);
+    console.log('Email del usuario:', email);
+    
+    // Obtener información del usuario de la base de datos - ahora usando la vista creada
+    console.log('Consultando vista de usuarios completa...');
+    const usuarioQuery = supabase
+      .from('vista_usuarios_completa')
       .select('*')
       .eq('correo', email)
       .eq('estado', true)
       .single();
+      
+    console.log('Query construido:', usuarioQuery);
+    
+    const { data: usuarioCorreduria, error: usuarioError } = await usuarioQuery;
+
+    if (usuarioCorreduria) {
+      console.log('Usuario encontrado en BD:', usuarioCorreduria);
+    }
 
     if (usuarioError) {
       if (usuarioError.code !== 'PGRST116') {
         console.error('Error al verificar usuario:', usuarioError);
+        console.error('Detalles completos del error:', JSON.stringify(usuarioError));
       }
       
       console.log('Usuario autenticado pero no encontrado en el sistema');
@@ -117,21 +131,24 @@ export const loginAction = async (
     let rolString = 'tecnico';
     const rolNum = Number(usuarioCorreduria.rol);
     
+    console.log('Datos del usuario encontrado:', usuarioCorreduria);
+    
     if (rolNum === 3) {
       rolString = 'superadmin';
     } else if (rolNum === 1) {
       rolString = 'admin';
     }
     
+    // Retornamos con el formato correcto incluyendo todos los campos necesarios
     return {
       ok: true,
       id: authData.user.id,
       email,
-      nombre: `${usuarioCorreduria.nombres || ''} ${usuarioCorreduria.apellidos || ''}`,
-      foto: usuarioCorreduria.avatar,
+      nombre: usuarioCorreduria.nombre || '',
+      foto: usuarioCorreduria.foto,
       id_correduria: usuarioCorreduria.id_correduria,
       rol: rolString,
-      es_primer_login: !usuarioCorreduria.fecha_modificado
+      es_primer_login: false // En este caso, no es primer login
     };
 
   } catch (error) {
