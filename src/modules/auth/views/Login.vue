@@ -101,12 +101,6 @@
 
         <!-- Enlaces de navegación y recuperación -->
         <p class="text-center text-sm text-text opacity-80 mt-4">
-          ¿No tienes una cuenta?
-          <router-link
-            class="text-primary no-underline transition-colors duration-300 hover:text-primary-hover hover:underline"
-            :to="{ name: 'register' }"
-            >Regístrate</router-link
-          ><br />
           ¿Olvidaste tu contraseña?
           <router-link
             class="text-primary no-underline transition-colors duration-300 hover:text-primary-hover hover:underline"
@@ -150,32 +144,43 @@
     error.value = null; // Reiniciar error al intentar iniciar sesión
     loading.value = true; // Activar estado de carga
 
-    // Validaciones para el email
-    if (myForm.email === '') {
-      error.value = 'El correo electrónico es obligatorio';
+    try {
+      // Validaciones para el email
+      if (myForm.email === '') {
+        error.value = 'El correo electrónico es obligatorio';
+        loading.value = false;
+        return inputEmailRef.value?.focus();
+      }
+
+      // Validaciones para el password
+      if (myForm.password === '') {
+        error.value = 'La contraseña es obligatoria';
+        loading.value = false;
+        return inputPasswordRef.value?.focus();
+      }
+
+      console.log('Iniciando proceso de login...');
+      // Intentar iniciar sesión
+      const ok = await authStore.login(myForm.email, myForm.password);
+
+      if (!ok) {
+        error.value = 'Credenciales incorrectas';
+        loading.value = false;
+        return;
+      }
+
+      if (ok === 'cambio-password') {
+        router.replace({ name: 'change-password' });
+        return;
+      }
+
       loading.value = false;
-      return inputEmailRef.value?.focus();
-    }
-
-    // Validaciones para el password
-    if (myForm.password === '') {
-      error.value = 'La contraseña es obligatoria';
+      router.replace({ name: 'dashboard' });
+    } catch (e) {
+      console.error('Error en el proceso de login:', e);
+      error.value = 'Ha ocurrido un error. Por favor, intenta de nuevo.';
       loading.value = false;
-      return inputPasswordRef.value?.focus();
     }
-
-    // Intentar iniciar sesión
-    const ok = await authStore.login(myForm.email, myForm.password);
-
-    if (!ok) {
-      error.value = 'Credenciales incorrectas';
-      loading.value = false; // Desactivar estado de carga
-      return;
-    }
-
-    loading.value = false; // Desactivar estado de carga
-
-    router.replace({ name: 'dashboard' });
   };
 
   //* Alterna la visibilidad del campo de contraseña

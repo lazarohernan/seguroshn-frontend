@@ -1,10 +1,10 @@
-import axios from 'axios'
+import { supabase } from '@/lib/supabase'
 
 /**
- * Obtiene el accessToken del localStorage
+ * Obtiene el token de sesión actual
  */
 export function getAccessToken() {
-  return localStorage.getItem('accessToken')
+  return supabase.auth.getSession().then(({ data: { session } }) => session?.access_token)
 }
 
 /**
@@ -19,24 +19,19 @@ export function getRefreshToken() {
  */
 export async function refreshAccessToken() {
   try {
-    const refreshToken = getRefreshToken()
-    if (!refreshToken) {
-      throw new Error('No hay refresh token disponible')
-    }
-
-    const response = await axios.post('http://localhost:3000/refresh-token/', {
-      refreshToken
-    })
-
-    if (response.data.accessToken) {
-      localStorage.setItem('accessToken', response.data.accessToken)
-      return response.data.accessToken
+    const { data: { session }, error } = await supabase.auth.refreshSession()
+    
+    if (error) throw error
+    
+    if (session?.access_token) {
+      return session.access_token
     } else {
       throw new Error('No se pudo renovar el token')
     }
   } catch (error) {
     console.error('Error al renovar token:', error)
-    logout()
+    // Redirigir al login
+    window.location.href = '/auth/login'
   }
 }
 

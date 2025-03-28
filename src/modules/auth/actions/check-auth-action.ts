@@ -1,38 +1,32 @@
-import { api } from '@/api/axiosInstance';
-import type { CheckStatusResponse } from '../interfaces';
-import { isAxiosError } from 'axios';
+import { supabase } from '@/lib/supabase'
 
 interface CheckError {
-  ok: boolean;
+  ok: boolean
 }
 
 interface CheckSuccess {
-  ok: boolean;
-  id_usuario: string;
+  ok: boolean
+  id_usuario?: string
 }
 
 export const checkAuthAction = async (): Promise<CheckError | CheckSuccess> => {
   try {
-    const localAccessToken = localStorage.getItem('accessToken');
-    if ((localAccessToken && localAccessToken.length === 0) || !localAccessToken) {
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session) {
       return {
-        ok: false,
-      };
+        ok: false
+      }
     }
-
-    const { data } = await api.get<CheckStatusResponse>('/auth/check-auth');
 
     return {
-      ok: data.ok,
-      id_usuario: data.id_usuario,
-    };
-  } catch (error) {
-    if (isAxiosError(error) && error.response?.status === 401) {
-      return {
-        ok: false,
-      };
+      ok: true,
+      id_usuario: session.user.id
     }
-
-    throw new Error('Error al comprobar la autenticación');
+  } catch (error) {
+    console.error('Error al comprobar la autenticación:', error)
+    return {
+      ok: false
+    }
   }
-};
+}

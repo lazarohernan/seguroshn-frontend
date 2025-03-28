@@ -1,98 +1,130 @@
-import { api } from '@/api/axiosInstance';
-import {
-  CreatePlanDePagoResponse,
-  DeleteResponse,
-  Respuesta,
-  RespuestaSimple,
-  UpdatePlanDePagoResponse,
-} from '../interfaces/plan_de_pago_interface';
+import { supabase } from '@/lib/supabase'
 
 export const getPlanesDePagoAction = async (id_cliente: string) => {
   try {
-    const { data } = await api.get<Respuesta>(`/plan-de-pago/?id_cliente=${id_cliente}`);
+    const { data, error } = await supabase
+      .from('plan_de_pago')
+      .select('*')
+      .eq('id_cliente', id_cliente)
+      .eq('estado', true)
 
-    return data;
+    if (error) throw error
+
+    return {
+      ok: true,
+      planes: data
+    }
   } catch (error) {
-    console.log(error);
-    throw new Error('Error getting Planes de Pago');
+    console.error('Error getting planes de pago:', error)
+    throw new Error('Error getting planes de pago')
   }
-};
+}
 
 export const getPlanDePagoAction = async (id_plan: string) => {
   try {
-    const { data } = await api.get<RespuestaSimple>(`/plan-de-pago/${id_plan}`);
+    const { data, error } = await supabase
+      .from('plan_de_pago')
+      .select('*')
+      .eq('id_plan', id_plan)
+      .single()
 
-    return data;
-  } catch (error) {
-    console.log(error);
-    throw new Error('Error getting specific póliza');
-  }
-};
+    if (error) throw error
 
-export const createPlanDePagoAction = async (formData: FormData) => {
-  try {
-    const { data } = await api.post<CreatePlanDePagoResponse>(`/plan-de-pago/`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data', //Necesaria para adjuntar archivos
-      },
-    });
-
-    if (data.ok) {
-      return data;
-    } else {
-      return {
-        ok: false,
-        message: 'Error al agregar el registro',
-      };
+    return {
+      ok: true,
+      plan: data
     }
   } catch (error) {
-    console.log(error);
-    throw new Error('Error creando Plan de Pago');
+    console.error('Error getting plan de pago:', error)
+    throw new Error('Error getting plan de pago')
   }
-};
+}
 
-export const updatePlanDePagoAction = async (formData: FormData) => {
-  //Obtener el id del plan de pago
-  const idPlanDePago = formData.get('id_plan');
+export const createPlanDePagoAction = async (
+  id_cliente: string,
+  id_poliza: string,
+  prima_total: number,
+  plazo: number,
+  fecha_de_pago: Date,
+  creado_por: string
+) => {
   try {
-    const { data } = await api.put<UpdatePlanDePagoResponse>(
-      `/plan-de-pago/${idPlanDePago}`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data', //Necesaria para adjuntar archivos
-        },
-      },
-    );
+    const { data, error } = await supabase
+      .from('plan_de_pago')
+      .insert([
+        {
+          id_cliente,
+          id_poliza,
+          prima_total,
+          plazo,
+          fecha_de_pago,
+          estado: true,
+          fecha_creado: new Date(),
+          creado_por
+        }
+      ])
+      .select()
+      .single()
 
-    if (data.ok) {
-      return data;
-    } else {
-      return {
-        ok: false,
-        message: 'Error al actualizar el registro',
-      };
+    if (error) throw error
+
+    return {
+      ok: true,
+      plan: data
     }
   } catch (error) {
-    console.log(error);
-    throw new Error('Error actualizando póliza');
+    console.error('Error creating plan de pago:', error)
+    throw new Error('Error creating plan de pago')
   }
-};
+}
 
-export const deletePlanDePagoAction = async (idPlanDePago: string) => {
+export const updatePlanDePagoAction = async (
+  id_plan: string,
+  prima_total: number,
+  plazo: number,
+  fecha_de_pago: Date,
+  modificado_por: string
+) => {
   try {
-    const { data } = await api.patch<DeleteResponse>(`/plan-de-pago/${idPlanDePago}`);
+    const { data, error } = await supabase
+      .from('plan_de_pago')
+      .update({
+        prima_total,
+        plazo,
+        fecha_de_pago,
+        fecha_modificado: new Date(),
+        modificado_por
+      })
+      .eq('id_plan', id_plan)
+      .select()
+      .single()
 
-    if (data.ok) {
-      return data;
-    } else {
-      return {
-        ok: false,
-        message: 'Error al borrar el registro',
-      };
+    if (error) throw error
+
+    return {
+      ok: true,
+      plan: data
     }
   } catch (error) {
-    console.log(error);
-    throw new Error('Error borrando póliza');
+    console.error('Error updating plan de pago:', error)
+    throw new Error('Error updating plan de pago')
   }
-};
+}
+
+export const deletePlanDePagoAction = async (id_plan: string) => {
+  try {
+    const { error } = await supabase
+      .from('plan_de_pago')
+      .update({ estado: false })
+      .eq('id_plan', id_plan)
+
+    if (error) throw error
+
+    return {
+      ok: true
+    }
+  } catch (error) {
+    console.error('Error deleting plan de pago:', error)
+    throw new Error('Error deleting plan de pago')
+  }
+}

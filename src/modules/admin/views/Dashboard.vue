@@ -130,10 +130,6 @@
   import { ref } from 'vue';
   import PolicyDistributionChart from '../components/PolicyDistributionChart.vue';
   import {
-    Users,
-    FileText,
-    DollarSign,
-    AlertCircle,
     CheckCircle2,
     Clock,
     ArrowUpRight,
@@ -141,103 +137,10 @@
     Bell,
   } from 'lucide-vue-next';
 
-  const stats = ref([
-    {
-      title: 'Total Clientes',
-      value: '1,234',
-      change: '+12.5%',
-      trend: 'up',
-      icon: Users,
-      color: 'blue',
-    },
-    {
-      title: 'Pólizas Activas',
-      value: '3,456',
-      change: '+8.2%',
-      trend: 'up',
-      icon: FileText,
-      color: 'green',
-    },
-    {
-      title: 'Clientes',
-      value: '890',
-      change: '+5.3%',
-      trend: 'up',
-      icon: Users,
-      color: 'purple',
-    },
-    {
-      title: 'Prima Total',
-      value: 'L. 2.5M',
-      change: '+15.3%',
-      trend: 'up',
-      icon: DollarSign,
-      color: 'yellow',
-    },
-  ]);
-
-  const policyDistribution = ref([
-    { type: 'Automóvil', count: 150 },
-    { type: 'Vida', count: 80 },
-    { type: 'Hogar', count: 60 },
-    { type: 'Salud', count: 90 },
-    { type: 'Negocio', count: 40 },
-  ]);
-
-  const recentPolicies = ref([
-    {
-      id: 'POL-001',
-      client: 'Juan Pérez',
-      type: 'Automóvil',
-      status: 'approved',
-      dueDate: '2024-03-15',
-    },
-    {
-      id: 'POL-002',
-      client: 'María López',
-      type: 'Vida',
-      status: 'pending',
-      dueDate: '2024-03-20',
-    },
-    {
-      id: 'POL-003',
-      client: 'Carlos Mendoza',
-      type: 'Hogar',
-      status: 'approved',
-      dueDate: '2024-03-25',
-    },
-    {
-      id: 'POL-004',
-      client: 'Ana Torres',
-      type: 'Salud',
-      status: 'pending',
-      dueDate: '2024-03-30',
-    },
-  ]);
-
-  const notifications = ref([
-    {
-      id: 1,
-      type: 'renewal',
-      title: 'Renovación Pendiente',
-      message: 'La póliza de Juan Pérez vence en 7 días',
-      date: '2024-02-13T10:30:00',
-    },
-    {
-      id: 2,
-      type: 'policy',
-      title: 'Nueva Póliza',
-      message: 'Se ha creado una nueva póliza para María López',
-      date: '2024-02-13T09:15:00',
-    },
-    {
-      id: 3,
-      type: 'system',
-      title: 'Actualización del Sistema',
-      message: 'Se han actualizado las tarifas del sistema',
-      date: '2024-02-13T08:45:00',
-    },
-  ]);
+  const stats = ref([]);
+  const policyDistribution = ref([]);
+  const recentPolicies = ref([]);
+  const notifications = ref([]);
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('es-HN', {

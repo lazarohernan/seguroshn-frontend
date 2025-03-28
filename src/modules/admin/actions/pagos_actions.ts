@@ -1,4 +1,4 @@
-import { api } from '@/api/axiosInstance';
+import { supabase } from '@/lib/supabase'
 import {
   CreatePagoResponse,
   DeletePagoResponse,
@@ -14,13 +14,23 @@ import {
  */
 export const getPagosAction = async (id_plan: string) => {
   try {
-    const { data } = await api.get<RespuestaPagos>(`/pagos/?id_plan=${id_plan}`);
-    return data;
+    const { data, error } = await supabase
+      .from('pagos_de_polizas')
+      .select('*')
+      .eq('id_plan', id_plan)
+      .order('fecha', { ascending: true })
+
+    if (error) throw error
+
+    return {
+      ok: true,
+      pagos: data
+    }
   } catch (error) {
-    console.log(error);
-    throw new Error('Error al obtener los pagos');
+    console.error('Error getting pagos:', error)
+    throw new Error('Error getting pagos')
   }
-};
+}
 
 /**
  * Obtiene un pago específico por su ID
@@ -29,102 +39,94 @@ export const getPagosAction = async (id_plan: string) => {
  */
 export const getPagoAction = async (id_pago: string) => {
   try {
-    const { data } = await api.get<RespuestaPagoSimple>(`/pagos/${id_pago}`);
-    return data;
+    const { data } = await supabase
+      .from('pagos_de_polizas')
+      .select('*')
+      .eq('id_pago', id_pago)
+      .single()
+
+    if (data) {
+      return data;
+    } else {
+      throw new Error('Pago no encontrado');
+    }
   } catch (error) {
-    console.log(error);
-    throw new Error('Error al obtener el pago específico');
+    console.error('Error getting pago:', error)
+    throw new Error('Error getting pago')
   }
-};
+}
 
 /**
  * Crea un nuevo registro de pago
- * @param formData Formulario con datos del pago incluyendo posible archivo de comprobante
+ * @param id_plan ID del plan de pago
+ * @param abono Monto del pago
+ * @param fecha Fecha del pago
  * @returns Respuesta de la creación del pago
  */
-export const createPagoAction = async (formData: FormData) => {
+export const createPagoAction = async (
+  id_plan: string,
+  abono: number,
+  fecha: Date
+) => {
   try {
-    // Verificar que id_plan esté presente y sea un UUID válido
-    const idPlan = formData.get('id_plan');
+    const { data, error } = await supabase
+      .from('pagos_de_polizas')
+      .insert([
+        {
+          id_plan,
+          abono,
+          fecha
+        }
+      ])
+      .select()
+      .single()
 
-    if (!idPlan) {
-      console.error('Error: No se incluyó id_plan en el FormData');
-      return {
-        ok: false,
-        message: 'Error: Falta el ID del plan',
-        data: null,
-      };
-    }
+    if (error) throw error
 
-    // Crear un nuevo FormData con valores explícitos para mayor control
-    const cleanFormData = new FormData();
-
-    for (const [key, value] of formData.entries()) {
-      if (key === 'id_plan') {
-        // Asegurar que el id_plan sea un string limpio
-        const cleanId = String(value).trim();
-        cleanFormData.append('id_plan', cleanId);
-      } else if (key === 'abono') {
-        // Asegurar que el abono sea un string numérico
-        cleanFormData.append('abono', String(value));
-      } else {
-        cleanFormData.append(key, value);
-      }
-    }
-
-    const { data } = await api.post<CreatePagoResponse>('/pagos/', cleanFormData, {
-      headers: {
-        'Content-Type': 'multipart/form-data', // Necesario para adjuntar archivos
-      },
-    });
-
-    if (data.ok) {
-      return data;
-    } else {
-      return {
-        ok: false,
-        message: 'Error al registrar el pago',
-        data: data.data,
-      };
+    return {
+      ok: true,
+      pago: data
     }
   } catch (error) {
-    console.log('FormData contents:');
-    for (const [key, value] of formData.entries()) {
-      console.log(`${key}: ${typeof value === 'object' ? '[objeto File]' : value}`);
-    }
-    console.log('error', error);
-    throw error;
+    console.error('Error creating pago:', error)
+    throw new Error('Error creating pago')
   }
-};
+}
 
 /**
  * Actualiza un pago existente
  * @param id_pago ID del pago a actualizar
- * @param formData Formulario con los datos actualizados
+ * @param abono Monto del pago actualizado
+ * @param fecha Fecha del pago actualizado
  * @returns Respuesta de la actualización
  */
-export const updatePagoAction = async (id_pago: string, formData: FormData) => {
+export const updatePagoAction = async (
+  id_pago: string,
+  abono: number,
+  fecha: Date
+) => {
   try {
-    const { data } = await api.put<UpdatePagoResponse>(`/pagos/${id_pago}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data', // Necesario para adjuntar archivos
-      },
-    });
+    const { data, error } = await supabase
+      .from('pagos_de_polizas')
+      .update({
+        abono,
+        fecha
+      })
+      .eq('id_pago', id_pago)
+      .select()
+      .single()
 
-    if (data.ok) {
-      return data;
-    } else {
-      return {
-        ok: false,
-        message: 'Error al actualizar el pago',
-        data: data.data,
-      };
+    if (error) throw error
+
+    return {
+      ok: true,
+      pago: data
     }
   } catch (error) {
-    console.log(error);
-    throw new Error('Error al actualizar el pago');
+    console.error('Error updating pago:', error)
+    throw new Error('Error updating pago')
   }
-};
+}
 
 /**
  * Elimina (inactiva) un pago
@@ -133,19 +135,18 @@ export const updatePagoAction = async (id_pago: string, formData: FormData) => {
  */
 export const deletePagoAction = async (id_pago: string) => {
   try {
-    const { data } = await api.patch<DeletePagoResponse>(`/pagos/${id_pago}`);
+    const { error } = await supabase
+      .from('pagos_de_polizas')
+      .delete()
+      .eq('id_pago', id_pago)
 
-    if (data.ok) {
-      return data;
-    } else {
-      return {
-        ok: false,
-        message: 'Error al eliminar el pago',
-        cantidad: '0',
-      };
+    if (error) throw error
+
+    return {
+      ok: true
     }
   } catch (error) {
-    console.log(error);
-    throw new Error('Error al eliminar el pago');
+    console.error('Error deleting pago:', error)
+    throw new Error('Error deleting pago')
   }
-};
+}

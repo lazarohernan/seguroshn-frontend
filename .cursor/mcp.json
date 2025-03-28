@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "@modelcontextprotocol/server-postgres",
+        "--connection-string",
+        "postgresql://postgres.edejazcguedqylhchwjg:Seguros2024@db.edejazcguedqylhchwjg.supabase.co:5432/postgres?sslmode=require",
+        "--schema",
+        "public",
+        "--role",
+        "service_role",
+        "--allow-writes"
+      ],
+      "env": {
+        "PGUSER": "postgres",
+        "PGPASSWORD": "Seguros2024",
+        "PGDATABASE": "postgres",
+        "PGHOST": "db.edejazcguedqylhchwjg.supabase.co",
+        "PGPORT": "5432",
+        "PGSSLMODE": "require",
+        "MCP_ALLOW_WRITES": "true"
+      }
+    }
+  }
+} 

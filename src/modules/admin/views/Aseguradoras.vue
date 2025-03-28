@@ -159,6 +159,7 @@
   import { useQuery, useQueryClient } from '@tanstack/vue-query';
   import { Plus, Search } from 'lucide-vue-next';
   import { useToast } from 'vue-toastification';
+  import { supabase } from '@/lib/supabase';
 
   //Composables y otras funciones
   import { useColorThief } from '@/composables/useColorThief';
@@ -294,26 +295,43 @@
   //!---------------------FUNCIONES PARA VER, EDITAR O AGREGAR ASEGURADORA
   //AGREGAR ASEGURADORA
   const handleAddInsurer = async (data: FormData) => {
-    const newInsurer: Partial<Aseguradora> = {
-      id_correduria,
-      nombre: data.get('nombre') as string,
-      descripcion: data.get('descripcion') as string,
-      nombre_gestor: data.get('nombre_gestor') as string,
-      tel_gestor: data.get('tel_gestor') as string,
-      correo_gestor: data.get('correo_gestor') as string,
-      logo: data.get('logo') as File | string, // Puede ser un archivo o una URL
-    };
-
     try {
-      // Llamar a la API para crear la aseguradora
-      const resp = await createAseguradoraAction(newInsurer);
+      const file = data.get('logo') as File;
+      let logoUrl = '';
+
+      // Si hay un archivo, subirlo al storage
+      if (file && file instanceof File) {
+        const filePath = `aseguradoras/${id_correduria}/${file.name}`;
+        const uploadResult = await supabase.storage
+          .from('logos')
+          .upload(filePath, file);
+
+        if (uploadResult.error) throw uploadResult.error;
+
+        // Obtener la URL pública del archivo
+        const { data: { publicUrl } } = supabase.storage
+          .from('logos')
+          .getPublicUrl(filePath);
+
+        logoUrl = publicUrl;
+      }
+
+      // Crear la aseguradora
+      const resp = await createAseguradoraAction(
+        id_correduria,
+        data.get('nombre') as string,
+        data.get('direccion') as string,
+        data.get('telefono') as string,
+        localStorage.getItem('uuid') ?? '',
+        logoUrl
+      );
+
       if (resp.ok) {
-        // ❗ Invalidar la consulta para forzar actualización de datos
+        // Invalidar la consulta para forzar actualización de datos
         await queryClient.invalidateQueries({ queryKey: [{ action: 'aseguradoras' }] });
 
         // Cerrar el modal
         showAddModal.value = false;
-
         toast.success('Registro agregado exitosamente!');
       } else {
         toast.error('Ocurrió un error al agregar el registro!');
@@ -357,19 +375,55 @@
 
   //ACTUALIZAR ASEGURADORA
   const handleSaveInsurer = async (data: FormData) => {
-    data.append('id_correduria', id_correduria);
-
     try {
-      // Llamar a la API para crear la aseguradora
-      const resp = await updateAseguradoraAction(data);
+      const file = data.get('logo') as File;
+      let logoUrl = selectedInsurer.value?.logo || '';
+
+      // Si hay un archivo nuevo, subirlo al storage
+      if (file && file instanceof File) {
+        // Si ya había un logo, eliminarlo
+        if (selectedInsurer.value?.logo) {
+          const oldPath = selectedInsurer.value.logo.split('/').pop();
+          if (oldPath) {
+            await supabase.storage
+              .from('logos')
+              .remove([`aseguradoras/${id_correduria}/${oldPath}`]);
+          }
+        }
+
+        // Subir el nuevo archivo
+        const filePath = `aseguradoras/${id_correduria}/${file.name}`;
+        const uploadResult = await supabase.storage
+          .from('logos')
+          .upload(filePath, file);
+
+        if (uploadResult.error) throw uploadResult.error;
+
+        // Obtener la URL pública del archivo
+        const { data: { publicUrl } } = supabase.storage
+          .from('logos')
+          .getPublicUrl(filePath);
+
+        logoUrl = publicUrl;
+      }
+
+      // Actualizar la aseguradora
+      const resp = await updateAseguradoraAction(
+        selectedInsurer.value?.id_aseguradora ?? '',
+        data.get('nombre') as string,
+        data.get('direccion') as string,
+        data.get('telefono') as string,
+        localStorage.getItem('uuid') ?? '',
+        logoUrl
+      );
+
       if (resp.ok) {
-        // ❗ Invalidar la consulta para forzar actualización de datos
+        // Invalidar la consulta para forzar actualización de datos
         await queryClient.invalidateQueries({ queryKey: [{ action: 'aseguradoras' }] });
 
         // Cerrar el modal
         showViewModal.value = false;
         selectedInsurer.value = null;
-
         toast.info('Registro actualizado exitosamente!');
       } else {
         toast.error('Ocurrió un error al actualizar el registro!');

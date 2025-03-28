@@ -22,11 +22,11 @@ import { useQueryClient } from '@tanstack/vue-query';
 import {
   createClienteAction,
   deleteClienteAction,
-  getClientesAction,
   updateClienteAction,
 } from '../actions/clientes_actions';
 import { Cliente } from '../interfaces/cliente_interface';
 import { useToast } from 'vue-toastification';
+import { supabase } from '@/lib/supabase';
 
 // Lazy load modals
 const ViewClientModal = defineAsyncComponent(
@@ -99,12 +99,22 @@ export default defineComponent({
     const loadClientes = async () => {
       isLoading.value = true;
       try {
-        const response = await getClientesAction(id_correduria, page.value, itemsPerPage.value);
-        clientes.value = response.data;
-        totalPages.value = response.totalPaginas;
+        const { data, error, count } = await supabase
+          .from('clientes')
+          .select('*', { count: 'exact' })
+          .eq('id_correduria', id_correduria)
+          .eq('estado', true)
+          .range(
+            (page.value - 1) * itemsPerPage.value,
+            page.value * itemsPerPage.value - 1
+          );
+
+        if (error) throw error;
+
+        clientes.value = data || [];
+        totalPages.value = Math.ceil((count || 0) / itemsPerPage.value);
       } catch (error) {
         console.error('Error al cargar clientes:', error);
-        // En caso de error, mostrar lista vacía
         clientes.value = [];
         totalPages.value = 1;
       } finally {
@@ -122,12 +132,12 @@ export default defineComponent({
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
-    // Prefetch de la siguiente página
-    const prefetchNextPage = async () => {
+    // Precargar siguiente página
+    const preloadNextPage = async () => {
       const nextPage = page.value + 1;
       if (nextPage <= totalPages.value) {
         try {
-          await getClientesAction(id_correduria, nextPage, itemsPerPage.value);
+          await loadClientes();
         } catch (error) {
           console.warn('Error al precargar la siguiente página:', error);
         }
@@ -137,7 +147,7 @@ export default defineComponent({
     // Precargar la siguiente página después de cargar la actual
     watch(isLoading, (loading) => {
       if (!loading) {
-        prefetchNextPage();
+        preloadNextPage();
       }
     });
 
@@ -228,15 +238,58 @@ export default defineComponent({
      */
     const handleUpdateClient = async (data: FormData): Promise<void> => {
       try {
-        // Llamar a la API para actualizar el cliente
-        const resp = await updateClienteAction(data);
+        const file = data.get('foto') as File;
+        let fotoUrl = selectedClient.value?.foto || '';
+
+        // Si hay un archivo nuevo, subirlo al storage
+        if (file && file instanceof File) {
+          // Si ya había una foto, eliminarla
+          if (selectedClient.value?.foto && typeof selectedClient.value.foto === 'string') {
+            const oldPath = selectedClient.value.foto.split('/').pop();
+            if (oldPath) {
+              await supabase.storage
+                .from('fotos')
+                .remove([`clientes/${id_correduria}/${oldPath}`]);
+            }
+          }
+
+          // Subir el nuevo archivo
+          const filePath = `clientes/${id_correduria}/${file.name}`;
+          const uploadResult = await supabase.storage
+            .from('fotos')
+            .upload(filePath, file);
+
+          if (uploadResult.error) throw uploadResult.error;
+
+          // Obtener la URL pública del archivo
+          const { data: { publicUrl } } = supabase.storage
+            .from('fotos')
+            .getPublicUrl(filePath);
+
+          fotoUrl = publicUrl;
+        }
+
+        // Actualizar el cliente con la nueva foto
+        const resp = await updateClienteAction(
+          selectedClient.value?.id_cliente ?? '',
+          data.get('nombre') as string,
+          data.get('direccion') as string,
+          data.get('telefono') as string,
+          data.get('correo') as string,
+          localStorage.getItem('uuid') ?? ''
+        );
+
+        // Si la actualización fue exitosa, actualizar también la foto en la base de datos
+        if (resp.ok && fotoUrl !== selectedClient.value?.foto) {
+          await supabase
+            .from('clientes')
+            .update({ foto: fotoUrl })
+            .eq('id_cliente', selectedClient.value?.id_cliente ?? '');
+        }
+
         if (resp.ok) {
-          // ❗ Invalidar la consulta para forzar actualización de datos
-          await queryClient.invalidateQueries({ queryKey: [{ action: 'clientes' }] });
-
-          // Cerrar el modal
+          await loadClientes();
           handleCloseModal();
-
           toast.success('Cliente actualizado exitosamente!');
         } else {
           toast.error('Ocurrió un error al actualizar el cliente!');
@@ -366,7 +419,6 @@ export default defineComponent({
       handleAddClient,
       handleExport,
       handleDeleteClient,
-      prefetchNextPage,
       handleItemsPerPageChange,
       handleViewPayments,
     };

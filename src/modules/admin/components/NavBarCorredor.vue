@@ -37,19 +37,18 @@
         <!-- Sección de perfil -->
         <div class="relative z-[200] profile-section">
           <div
-            class="relative p-0.5 rounded-full cursor-pointer transition-transform duration-300 hover:scale-105 focus:outline-none"
+            class="relative p-0.5 rounded-full cursor-pointer transition-transform duration-300 hover:scale-105 focus:outline-none group"
             role="button"
             tabindex="0"
             @click.stop="toggleProfileMenu"
           >
-            <img
-              :src="foto ?? 'https://ui-avatars.com/api/?name=John+Doe&background=8CBFCF&color=fff'"
-              alt="Avatar"
-              class="w-9 h-9 sm:w-8 sm:h-8 rounded-full object-cover"
-            />
-            <div
-              class="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 border-2 border-[#0e1a25]"
-            ></div>
+            <div class="relative inline-block">
+              <img
+                :src="foto ?? 'https://ui-avatars.com/api/?name=John+Doe&background=8CBFCF&color=fff'"
+                alt="Avatar"
+                class="w-9 h-9 sm:w-8 sm:h-8 rounded-full object-cover ring-2 ring-white/10 group-hover:ring-primary/30 transition-all duration-300"
+              />
+            </div>
           </div>
 
           <!-- Menú desplegable del perfil -->
@@ -77,7 +76,7 @@
             <div class="p-2">
               <RouterLink
                 to="/perfil"
-                class="flex items-center gap-3 p-3 text-sm text-text no-underline transition-all duration-200 rounded-lg hover:bg-input-bg hover:text-primary"
+                class="flex items-center gap-3 p-3 text-sm text-text no-underline transition-all duration-200 rounded-lg hover:bg-primary/10 hover:text-primary"
               >
                 <User
                   class="w-5 h-5 opacity-70 transition-opacity duration-200 group-hover:opacity-100"
@@ -86,7 +85,7 @@
               </RouterLink>
               <RouterLink
                 to="/configuracion"
-                class="flex items-center gap-3 p-3 text-sm text-text no-underline transition-all duration-200 rounded-lg hover:bg-input-bg hover:text-primary"
+                class="flex items-center gap-3 p-3 text-sm text-text no-underline transition-all duration-200 rounded-lg hover:bg-primary/10 hover:text-primary"
               >
                 <Settings
                   class="w-5 h-5 opacity-70 transition-opacity duration-200 group-hover:opacity-100"
@@ -94,7 +93,7 @@
                 <span>Configuración</span>
               </RouterLink>
               <button
-                class="w-full flex items-center gap-3 p-3 text-sm text-text bg-transparent border-none cursor-pointer transition-all duration-200 rounded-lg hover:bg-input-bg hover:text-primary"
+                class="w-full flex items-center gap-3 p-3 text-sm text-text bg-transparent border-none cursor-pointer transition-all duration-200 rounded-lg hover:bg-red-500/10 hover:text-red-500"
                 @click="handleLogout"
               >
                 <LogOut
@@ -137,10 +136,6 @@
     if (showProfileMenu.value) showProfileMenu.value = false;
   };
 
-  // const handleLogout = () => {
-  //   window.location.href = '/login';
-  // };
-
   const closeMenus = (event: MouseEvent) => {
     const target = event.target as HTMLElement;
     if (!target.closest('.profile-section') && !target.closest('.notification-btn')) {
@@ -153,9 +148,16 @@
     window.addEventListener('click', closeMenus);
   }
 
-  const handleLogout = () => {
-    authStore.logout();
-
-    router.replace({ name: 'login' });
+  const handleLogout = async () => {
+    try {
+      const success = await authStore.logout();
+      if (success) {
+        showProfileMenu.value = false;
+        showNotifications.value = false;
+        router.replace({ name: 'login' });
+      }
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    }
   };
 </script>

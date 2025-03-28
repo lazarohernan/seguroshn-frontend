@@ -1,9 +1,9 @@
 import { supabase } from '@/lib/supabase'
 
-export const getAseguradorasAction = async () => {
+export const getCorreduriasAction = async () => {
   try {
     const { data, error } = await supabase
-      .from('aseguradoras')
+      .from('corredurias')
       .select('*')
       .eq('estado', true)
 
@@ -11,35 +11,35 @@ export const getAseguradorasAction = async () => {
 
     return {
       ok: true,
-      aseguradoras: data
+      corredurias: data
     }
   } catch (error) {
-    console.error('Error getting aseguradoras:', error)
-    throw new Error('Error getting aseguradoras')
+    console.error('Error getting corredurias:', error)
+    throw new Error('Error getting corredurias')
   }
 }
 
-export const getAseguradoraAction = async (id_aseguradora: string) => {
+export const getCorreduriaAction = async (id_correduria: string) => {
   try {
     const { data, error } = await supabase
-      .from('aseguradoras')
+      .from('corredurias')
       .select('*')
-      .eq('id_aseguradora', id_aseguradora)
+      .eq('id_correduria', id_correduria)
       .single()
 
     if (error) throw error
 
     return {
       ok: true,
-      aseguradora: data
+      correduria: data
     }
   } catch (error) {
-    console.error('Error getting aseguradora:', error)
-    throw new Error('Error getting aseguradora')
+    console.error('Error getting correduria:', error)
+    throw new Error('Error getting correduria')
   }
 }
 
-export const createAseguradoraAction = async (
+export const createCorreduriaAction = async (
   nombre: string,
   direccion: string,
   telefono: string,
@@ -47,7 +47,7 @@ export const createAseguradoraAction = async (
 ) => {
   try {
     const { data, error } = await supabase
-      .from('aseguradoras')
+      .from('corredurias')
       .insert([
         {
           nombre,
@@ -65,16 +65,16 @@ export const createAseguradoraAction = async (
 
     return {
       ok: true,
-      aseguradora: data
+      correduria: data
     }
   } catch (error) {
-    console.error('Error creating aseguradora:', error)
-    throw new Error('Error creating aseguradora')
+    console.error('Error creating correduria:', error)
+    throw new Error('Error creating correduria')
   }
 }
 
-export const updateAseguradoraAction = async (
-  id_aseguradora: string,
+export const updateCorreduriaAction = async (
+  id_correduria: string,
   nombre: string,
   direccion: string,
   telefono: string,
@@ -82,7 +82,7 @@ export const updateAseguradoraAction = async (
 ) => {
   try {
     const { data, error } = await supabase
-      .from('aseguradoras')
+      .from('corredurias')
       .update({
         nombre,
         direccion,
@@ -90,7 +90,7 @@ export const updateAseguradoraAction = async (
         fecha_modificado: new Date(),
         modificado_por
       })
-      .eq('id_aseguradora', id_aseguradora)
+      .eq('id_correduria', id_correduria)
       .select()
       .single()
 
@@ -98,20 +98,20 @@ export const updateAseguradoraAction = async (
 
     return {
       ok: true,
-      aseguradora: data
+      correduria: data
     }
   } catch (error) {
-    console.error('Error updating aseguradora:', error)
-    throw new Error('Error updating aseguradora')
+    console.error('Error updating correduria:', error)
+    throw new Error('Error updating correduria')
   }
 }
 
-export const deleteAseguradoraAction = async (id_aseguradora: string) => {
+export const deleteCorreduriaAction = async (id_correduria: string) => {
   try {
     const { error } = await supabase
-      .from('aseguradoras')
+      .from('corredurias')
       .update({ estado: false })
-      .eq('id_aseguradora', id_aseguradora)
+      .eq('id_correduria', id_correduria)
 
     if (error) throw error
 
@@ -119,7 +119,7 @@ export const deleteAseguradoraAction = async (id_aseguradora: string) => {
       ok: true
     }
   } catch (error) {
-    console.error('Error deleting aseguradora:', error)
-    throw new Error('Error deleting aseguradora')
+    console.error('Error deleting correduria:', error)
+    throw new Error('Error deleting correduria')
   }
-}
+} 

@@ -14,6 +14,24 @@ export default defineConfig({
     }
   },
   base: '/',
+  server: {
+    cors: {
+      origin: '*',
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'apikey'],
+      credentials: true
+    },
+    proxy: {
+      '/rest/v1': {
+        target: 'https://edejazcguedqylhchwjg.supabase.co',
+        changeOrigin: true,
+        secure: false,
+        headers: {
+          'apikey': process.env.VITE_SUPABASE_ANON_KEY
+        }
+      }
+    }
+  },
   build: {
     chunkSizeWarningLimit: 2000,
     rollupOptions: {

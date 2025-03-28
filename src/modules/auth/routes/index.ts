@@ -14,14 +14,14 @@ export const authRoutes: RouteRecordRaw = {
       component: () => import('@/modules/auth/views/Login.vue'),
     },
     {
-      path: 'register',
-      name: 'register',
-      component: () => import('@/modules/auth/views/Register.vue'),
-    },
-    {
-      path: '/recover-password',
+      path: 'recover-password',
       name: 'recover-password',
       component: () => import('@/modules/auth/views/RecoverPassword.vue'),
+    },
+    {
+      path: 'reset-password',
+      name: 'reset-password',
+      component: () => import('@/modules/auth/views/ResetPassword.vue'),
     },
   ],
 };

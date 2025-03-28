@@ -102,33 +102,8 @@
 
   const router = useRouter();
 
-  // Estado inicial de notificaciones (mock data)
-  const notifications = ref<Notification[]>([
-    {
-      id: 1,
-      type: 'policy_created',
-      title: 'Nueva Póliza Aprobada',
-      message: 'La póliza #AUTO-2024-001 ha sido aprobada exitosamente.',
-      date: '2024-02-20T10:30:00',
-      read: false,
-    },
-    {
-      id: 2,
-      type: 'policy_expiring',
-      title: 'Renovación Próxima',
-      message: 'La póliza de Juan Pérez vence en 7 días.',
-      date: '2024-02-19T15:45:00',
-      read: false,
-    },
-    {
-      id: 3,
-      type: 'system_update',
-      title: 'Actualización del Sistema',
-      message: 'Se han agregado nuevas funcionalidades a la plataforma.',
-      date: '2024-02-18T09:15:00',
-      read: true,
-    },
-  ]);
+  // Estado inicial de notificaciones
+  const notifications = ref<Notification[]>([]);
 
   // Formatea la fecha de la notificación al formato local
   const formatDate = (dateString: string) => {
@@ -155,7 +130,6 @@
     router.push('/notificaciones');
   };
 
-  // Obtener color según tipo de notificación
   // Obtener color según tipo de notificación
   const getNotificationColor = (type: NotificationType) => {
     const colors = {

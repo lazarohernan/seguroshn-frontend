@@ -195,51 +195,8 @@
   import { useSearch } from '@/composables/useSearch';
   import type { Notification, NotificationType } from '@/types';
 
-  // Datos de ejemplo de notificaciones
-  const notifications = ref<Notification[]>([
-    {
-      id: 1,
-      type: 'policy_expiring',
-      title: 'Póliza próxima a vencer',
-      message: 'La póliza #AUTO-2024-001 vencerá en 15 días',
-      date: '2024-02-15T10:30:00',
-      read: false,
-      link: '/polizas/AUTO-2024-001',
-      metadata: {
-        policyId: 1,
-        clientId: 1,
-        dueDate: '2024-03-01',
-      },
-    },
-    {
-      id: 2,
-      type: 'payment_due',
-      title: 'Pago pendiente',
-      message: 'Pago pendiente de L. 1,500 para la póliza #LIFE-2024-001',
-      date: '2024-02-14T15:45:00',
-      read: true,
-      link: '/polizas/LIFE-2024-001/pagos',
-      metadata: {
-        policyId: 2,
-        clientId: 1,
-        paymentId: 1,
-        amount: 1500,
-        dueDate: '2024-02-28',
-      },
-    },
-    {
-      id: 3,
-      type: 'client_updated',
-      title: 'Información de cliente actualizada',
-      message: 'Se actualizó la información de contacto del cliente Juan Pérez',
-      date: '2024-02-13T09:15:00',
-      read: false,
-      link: '/clientes/1',
-      metadata: {
-        clientId: 1,
-      },
-    },
-  ]);
+  // Estado inicial de notificaciones
+  const notifications = ref<Notification[]>([]);
 
   // Filtros disponibles
   const filters = ref<NotificationType[]>([
@@ -323,7 +280,6 @@
     return icons[type];
   };
 
-  // Obtener color según tipo de notificación
   // Obtener color según tipo de notificación
   const getNotificationColor = (type: NotificationType) => {
     const colors = {

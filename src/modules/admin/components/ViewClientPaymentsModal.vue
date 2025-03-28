@@ -214,25 +214,30 @@
   };
 
   const handleSavePayment = async (payment: Pago) => {
-    //Obtener el uuid del usuario autenticado
-    //const uuid = localStorage.getItem('uuid');
+    try {
+      const resp = await updatePagoAction(
+        payment.id_pago ?? '',
+        payment.abono,
+        payment.fecha,
+        localStorage.getItem('uuid') ?? ''
+      );
 
-    const id_pago = payment.id_pago;
+      if (resp.ok) {
+        toast.success('Registro actualizado exitosamente!');
+        originalPayment.value = { ...payment };
+        showPaymentDetailsModal.value = false;
+        selectedPayment.value = null;
+        originalPayment.value = null;
+        isEditing.value = false;
 
-    const formData = new FormData();
-    //TODO: Agregar los datos del pago al FormData
-
-    // Llamar a la API para actualizar el pago
-    const res = await updatePagoAction(id_pago ?? '', formData);
-
-    if (res.ok) {
-      toast.success('Registro actualizado exitosamente!');
-      originalPayment.value = { ...payment };
-      showPaymentDetailsModal.value = false;
-      selectedPayment.value = null;
-      originalPayment.value = null;
-      isEditing.value = false;
-    } else {
+        // Recargar los pagos
+        const res = await getPagosAction(props.planDePagoId);
+        payments.value = res.pagos;
+      } else {
+        toast.error('Ocurrió un error al actualizar el registro!');
+      }
+    } catch (error) {
+      console.error('Error al actualizar pago:', error);
       toast.error('Ocurrió un error al actualizar el registro!');
     }
   };
@@ -260,14 +265,23 @@
   };
 
   onMounted(async () => {
-    // Obtener el plan de pago
-    if (props.planDePagoId) {
-      const response = await getPlanDePagoAction(props.planDePagoId);
-      planDePago.value = response.data;
+    try {
+      // Obtener el plan de pago
+      if (props.planDePagoId) {
+        const planResponse = await getPlanDePagoAction(props.planDePagoId);
+        if (planResponse.ok) {
+          planDePago.value = planResponse.plan;
+        }
 
-      // Obtener los pagos del plan de pago
-      const res = await getPagosAction(props.planDePagoId);
-      payments.value = res.data;
+        // Obtener los pagos del plan de pago
+        const pagosResponse = await getPagosAction(props.planDePagoId);
+        if (pagosResponse.ok) {
+          payments.value = pagosResponse.pagos;
+        }
+      }
+    } catch (error) {
+      console.error('Error al cargar datos:', error);
+      toast.error('Error al cargar los datos');
     }
   });
 

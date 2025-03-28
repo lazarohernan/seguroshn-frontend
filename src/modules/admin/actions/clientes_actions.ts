@@ -1,70 +1,132 @@
-import { api } from '@/api/axiosInstance';
-import { CreateClienteResponse, DeleteResponse, Respuesta } from '../interfaces/cliente_interface';
+import { supabase } from '@/lib/supabase'
 
-export const getClientesAction = async (id_correduria: string, pagina: number, limite: number) => {
+export const getClientesPorCorreduriaAction = async (id_correduria: string) => {
   try {
-    const { data } = await api.get<Respuesta>(
-      `/clientes/?id_correduria=${id_correduria}&pagina=${pagina}&limite=${limite}`,
-    );
+    const { data, error } = await supabase
+      .from('clientes')
+      .select('*')
+      .eq('id_correduria', id_correduria)
+      .eq('estado', true)
 
-    return data;
-  } catch (error) {
-    console.log(error);
-    throw new Error('Error getting pólizas');
-  }
-};
+    if (error) throw error
 
-export const createClienteAction = async (formData: FormData) => {
-  try {
-    const { data } = await api.post<CreateClienteResponse>(`/clientes/`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data', //Necesaria para adjuntar archivos
-      },
-    });
-
-    if (data.ok) {
-      return data;
-    } else {
-      return {
-        ok: false,
-        message: 'Error al agregar el registro',
-      };
+    return {
+      ok: true,
+      clientes: data
     }
   } catch (error) {
-    console.log(error);
-    throw new Error('Error creando póliza');
+    console.error('Error getting clientes:', error)
+    throw new Error('Error getting clientes')
   }
-};
+}
 
-export const updateClienteAction = async (formData: FormData) => {
-  const id_cliente = formData.get('id_cliente');
+export const getClienteAction = async (id_cliente: string) => {
   try {
-    const { data } = await api.put<CreateClienteResponse>(`/clientes/${id_cliente}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data', // Necessary for file uploads
-      },
-    });
+    const { data, error } = await supabase
+      .from('clientes')
+      .select('*')
+      .eq('id_cliente', id_cliente)
+      .single()
 
-    if (data.ok) {
-      return data;
-    } else {
-      return {
-        ok: false,
-        message: 'Error al actualizar el cliente',
-      };
+    if (error) throw error
+
+    return {
+      ok: true,
+      cliente: data
     }
   } catch (error) {
-    console.log(error);
-    throw new Error('Error actualizando cliente');
+    console.error('Error getting cliente:', error)
+    throw new Error('Error getting cliente')
   }
-};
+}
+
+export const createClienteAction = async (
+  id_correduria: string,
+  nombre: string,
+  direccion: string,
+  telefono: string,
+  correo: string,
+  creado_por: string
+) => {
+  try {
+    const { data, error } = await supabase
+      .from('clientes')
+      .insert([
+        {
+          id_correduria,
+          nombre,
+          direccion,
+          telefono,
+          correo,
+          estado: true,
+          fecha_creado: new Date(),
+          creado_por
+        }
+      ])
+      .select()
+      .single()
+
+    if (error) throw error
+
+    return {
+      ok: true,
+      cliente: data
+    }
+  } catch (error) {
+    console.error('Error creating cliente:', error)
+    throw new Error('Error creating cliente')
+  }
+}
+
+export const updateClienteAction = async (
+  id_cliente: string,
+  nombre: string,
+  direccion: string,
+  telefono: string,
+  correo: string,
+  modificado_por: string
+) => {
+  try {
+    const { data, error } = await supabase
+      .from('clientes')
+      .update({
+        nombre,
+        direccion,
+        telefono,
+        correo,
+        fecha_modificado: new Date(),
+        modificado_por
+      })
+      .eq('id_cliente', id_cliente)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    return {
+      ok: true,
+      cliente: data
+    }
+  } catch (error) {
+    console.error('Error updating cliente:', error)
+    throw new Error('Error updating cliente')
+  }
+}
 
 export const deleteClienteAction = async (id_cliente: string) => {
   try {
-    const { data } = await api.patch<DeleteResponse>(`/clientes/${id_cliente}`);
-    return data;
+    const { error } = await supabase
+      .from('clientes')
+      .update({ estado: false })
+      .eq('id_cliente', id_cliente)
+
+    if (error) throw error
+
+    return {
+      ok: true
+    }
   } catch (error) {
-    console.log(error);
-    throw new Error('Error eliminando cliente');
+    console.error('Error deleting cliente:', error)
+    throw new Error('Error deleting cliente')
   }
-};
+}

@@ -111,6 +111,7 @@
   import { useQuery, useQueryClient } from '@tanstack/vue-query';
   import { useToast } from 'vue-toastification';
   import { Shield, Plus, Search } from 'lucide-vue-next';
+  import { supabase } from '@/lib/supabase';
 
   import { useSearch } from '@/composables/useSearch';
   import { Poliza } from '../interfaces/polizas_interface';
@@ -161,17 +162,48 @@
   //!--------------------FUNCIONES PARA VER, EDITAR O AGREGAR PÓLIZA
   //AGREGAR PÓLIZA
   const handleAddPolicy = async (data: FormData) => {
-    data.append('id_correduria', id_correduria);
     try {
-      // Llamar a la API para crear la aseguradora
-      const resp = await createPolizaAction(data);
+      const file = data.get('archivo') as File;
+      let archivoUrl = '';
+
+      // Si hay un archivo, subirlo al storage
+      if (file && file instanceof File) {
+        const filePath = `polizas/${id_correduria}/${file.name}`;
+        const uploadResult = await supabase.storage
+          .from('archivos')
+          .upload(filePath, file);
+
+        if (uploadResult.error) throw uploadResult.error;
+
+        // Obtener la URL pública del archivo
+        const { data: { publicUrl } } = supabase.storage
+          .from('archivos')
+          .getPublicUrl(filePath);
+
+        archivoUrl = publicUrl;
+      }
+
+      // Crear la póliza
+      const resp = await createPolizaAction(
+        id_correduria,
+        data.get('nombre') as string,
+        data.get('descripcion') as string,
+        data.get('id_aseguradora') as string,
+        data.get('id_cliente') as string,
+        data.get('prima_total') as string,
+        data.get('plazo') as string,
+        data.get('fecha_inicio') as string,
+        data.get('fecha_fin') as string,
+        localStorage.getItem('uuid') ?? '',
+        archivoUrl
+      );
+
       if (resp.ok) {
-        // ❗ Invalidar la consulta para forzar actualización de datos
+        // Invalidar la consulta para forzar actualización de datos
         await queryClient.invalidateQueries({ queryKey: [{ action: 'polizas' }] });
 
         // Cerrar el modal
         showAddModal.value = false;
-
         toast.success('Registro agregado exitosamente!');
       } else {
         toast.error('Ocurrió un error al agregar el registro!');
@@ -194,19 +226,59 @@
 
   //ACTUALIZAR PÓLIZA
   const handleSavePoliza = async (data: FormData) => {
-    data.append('id_correduria', id_correduria);
-
     try {
-      // Llamar a la API para crear la aseguradora
-      const resp = await updatePolizaAction(data);
+      const file = data.get('archivo') as File;
+      let archivoUrl = selectedPolicy.value?.archivo || '';
+
+      // Si hay un archivo nuevo, subirlo al storage
+      if (file && file instanceof File) {
+        // Si ya había un archivo, eliminarlo
+        if (selectedPolicy.value?.archivo && typeof selectedPolicy.value.archivo === 'string') {
+          const oldPath = selectedPolicy.value.archivo.split('/').pop();
+          if (oldPath) {
+            await supabase.storage
+              .from('archivos')
+              .remove([`polizas/${id_correduria}/${oldPath}`]);
+          }
+        }
+
+        // Subir el nuevo archivo
+        const filePath = `polizas/${id_correduria}/${file.name}`;
+        const uploadResult = await supabase.storage
+          .from('archivos')
+          .upload(filePath, file);
+
+        if (uploadResult.error) throw uploadResult.error;
+
+        // Obtener la URL pública del archivo
+        const { data: { publicUrl } } = supabase.storage
+          .from('archivos')
+          .getPublicUrl(filePath);
+
+        archivoUrl = publicUrl;
+      }
+
+      // Actualizar la póliza
+      const resp = await updatePolizaAction(
+        selectedPolicy.value?.id_poliza ?? '',
+        data.get('nombre') as string,
+        data.get('descripcion') as string,
+        data.get('id_aseguradora') as string,
+        data.get('id_cliente') as string,
+        data.get('prima_total') as string,
+        data.get('plazo') as string,
+        data.get('fecha_inicio') as string,
+        data.get('fecha_fin') as string,
+        localStorage.getItem('uuid') ?? '',
+        archivoUrl
+      );
 
       if (resp.ok) {
-        // ❗ Invalidar la consulta para forzar actualización de datos
+        // Invalidar la consulta para forzar actualización de datos
         await queryClient.invalidateQueries({ queryKey: [{ action: 'polizas' }] });
 
         // Cerrar el modal
         handleCloseViewModal();
-
         toast.info('Registro actualizado exitosamente!');
       } else {
         toast.error('Ocurrió un error al actualizar el registro!');
