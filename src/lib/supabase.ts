@@ -36,7 +36,8 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
         return supabaseKey
       },
       get Authorization() {
-        return `Bearer ${getAccessToken()}`
+        const token = getAccessToken()
+        return token !== supabaseKey ? `Bearer ${token}` : ''
       },
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
@@ -49,7 +50,7 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
   },
   realtime: {
     params: {
-      eventsPerSecond: 10
+      eventsPerSecond: 5
     }
   }
 }) 

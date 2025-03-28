@@ -22,9 +22,24 @@ export const loginAction = async (
   password: string,
 ): Promise<LoginError | LoginSuccess> => {
   try {
-    console.log('Iniciando proceso de login...');
+    console.log('Iniciando proceso de login con:', email);
+    
+    // Limpiar cualquier sesión anterior
+    try {
+      await supabase.auth.signOut()
+      console.log('Sesión anterior limpiada');
+      
+      // Limpiar tokens en localStorage
+      localStorage.removeItem('supabase-auth');
+      localStorage.removeItem('sb-access-token');
+      localStorage.removeItem('sb-refresh-token');
+    } catch (signOutError) {
+      console.warn('Error al limpiar sesión previa:', signOutError);
+      // Continuamos aunque haya error limpiando la sesión
+    }
     
     // Primero intentamos autenticar con Supabase Auth
+    console.log('Intentando autenticar con Supabase Auth...');
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -49,14 +64,26 @@ export const loginAction = async (
       }
     }
 
-    console.log('Usuario autenticado, verificando rol...');
+    console.log('Usuario autenticado correctamente:', authData.user.id);
+    console.log('Verificando rol...');
+
+    // Guardamos tokens inmediatamente para consultas posteriores
+    if (authData.session?.access_token) {
+      localStorage.setItem('sb-access-token', authData.session.access_token);
+    }
+    if (authData.session?.refresh_token) {
+      localStorage.setItem('sb-refresh-token', authData.session.refresh_token);
+    }
 
     // Verificamos si es un superadmin
+    console.log('Consultando tabla superadmins para:', email);
     const { data: superadmin, error: superadminError } = await supabase
       .from('superadmins')
       .select('*')
       .eq('email', email)
       .single()
+
+    console.log('Respuesta de superadmin:', superadmin, superadminError);
 
     if (superadminError && superadminError.code !== 'PGRST116') {
       console.error('Error al verificar superadmin:', superadminError);
@@ -64,7 +91,7 @@ export const loginAction = async (
     }
 
     if (superadmin) {
-      console.log('Usuario identificado como superadmin');
+      console.log('Usuario identificado como superadmin:', superadmin);
       return {
         ok: true,
         id: authData.user.id,
@@ -81,8 +108,34 @@ export const loginAction = async (
     const { data: usuarioCorreduria, error: usuarioError } = await supabase
       .from('usuarios_corredurias')
       .select('*')
-      .eq('correo', email)
+      .eq('email', email)
       .single()
+
+    console.log('Respuesta de usuario correduría:', usuarioCorreduria, usuarioError);
+
+    // Verificamos también con el campo correo
+    if (!usuarioCorreduria) {
+      const { data: usuarioPorCorreo, error: correoDuriaError } = await supabase
+        .from('usuarios_corredurias')
+        .select('*')
+        .eq('correo', email)
+        .single()
+        
+      console.log('Búsqueda por campo correo:', usuarioPorCorreo, correoDuriaError);
+      
+      if (!correoDuriaError && usuarioPorCorreo) {
+        console.log('Usuario identificado por campo correo');
+        return {
+          ok: true,
+          id: authData.user.id,
+          email: email,
+          nombre: usuarioPorCorreo.nombres || usuarioPorCorreo.nombre,
+          foto: usuarioPorCorreo.avatar || usuarioPorCorreo.foto,
+          rol: usuarioPorCorreo.rol === 1 ? 'admin' : 'tecnico',
+          es_primer_login: !usuarioPorCorreo.fecha_modificado
+        }
+      }
+    }
 
     if (usuarioError && usuarioError.code !== 'PGRST116') {
       console.error('Error al verificar usuario de correduría:', usuarioError);
@@ -95,8 +148,8 @@ export const loginAction = async (
         ok: true,
         id: authData.user.id,
         email: email,
-        nombre: usuarioCorreduria.nombre,
-        foto: usuarioCorreduria.foto,
+        nombre: usuarioCorreduria.nombres || usuarioCorreduria.nombre,
+        foto: usuarioCorreduria.avatar || usuarioCorreduria.foto,
         rol: usuarioCorreduria.rol === 1 ? 'admin' : 'tecnico',
         es_primer_login: !usuarioCorreduria.fecha_modificado
       }
@@ -105,6 +158,12 @@ export const loginAction = async (
     console.log('Usuario autenticado pero sin rol asignado');
     // Si llegamos aquí, el usuario está autenticado pero no tiene rol asignado
     await supabase.auth.signOut() // Cerramos la sesión
+    
+    // Limpiar tokens
+    localStorage.removeItem('supabase-auth');
+    localStorage.removeItem('sb-access-token');
+    localStorage.removeItem('sb-refresh-token');
+    
     return {
       ok: false,
       message: 'Tu cuenta no tiene permisos para acceder a esta plataforma.'
@@ -112,10 +171,18 @@ export const loginAction = async (
 
   } catch (error) {
     console.error('Error en login:', error)
+    
+    // Limpiar sesión en caso de error
+    try {
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.warn('Error al limpiar sesión:', err);
+    }
+    
     if (error instanceof AuthError) {
       return {
         ok: false,
-        message: 'Error de autenticación. Por favor, intenta de nuevo.'
+        message: 'Error de autenticación: ' + error.message
       }
     }
     return {
