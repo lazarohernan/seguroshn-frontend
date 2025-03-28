@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { Database } from './database.types'
+import { supabaseUrl, supabaseAnonKey, supabaseConfig, isVercel, isDevelopment } from './supabase-config'
 
 export type Tables = Database['public']['Tables']
 export type Enums = Database['public']['Enums']
@@ -12,44 +13,19 @@ export type Aseguradora = Tables['aseguradoras']['Row']
 export type PlanDePago = Tables['planes_de_pago']['Row']
 export type Pago = Tables['pagos']['Row']
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+// Crear el cliente Supabase con la configuración centralizada
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, supabaseConfig)
 
-// Función para obtener el token de acceso actual
-const getAccessToken = () => {
-  return localStorage.getItem('sb-access-token') || supabaseKey
-}
-
-export const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-    storage: localStorage,
-    storageKey: 'supabase-auth',
-    flowType: 'pkce'
-  },
-  global: {
-    headers: {
-      get apikey() {
-        return supabaseKey
-      },
-      get Authorization() {
-        const token = getAccessToken()
-        return token !== supabaseKey ? `Bearer ${token}` : ''
-      },
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Authorization, apikey'
-    }
-  },
-  db: {
-    schema: 'public'
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 5
-    }
+// Configuración de debug para Vercel
+if (isVercel && isDevelopment) {
+  console.log('🚀 Supabase client inicializado en Vercel')
+  console.log('URL:', supabaseUrl)
+  console.log('Auth config:', supabaseConfig.auth)
+  
+  // Verificar que las variables de entorno están disponibles
+  const envVars = {
+    'VITE_SUPABASE_URL': import.meta.env.VITE_SUPABASE_URL ? '✅ Disponible' : '❌ No disponible',
+    'VITE_SUPABASE_ANON_KEY': import.meta.env.VITE_SUPABASE_ANON_KEY ? '✅ Disponible' : '❌ No disponible'
   }
-})
+  console.log('Variables de entorno:', envVars)
+}

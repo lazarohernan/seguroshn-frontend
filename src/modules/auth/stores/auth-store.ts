@@ -131,35 +131,47 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       // Verificar en usuarios_corredurias - ahora incluye superadmins (rol = 3)
-      const { data: usuarioCorreduria } = await supabase
+      const { data: usuarioCorreduria, error: usuarioError } = await supabase
         .from('usuarios_corredurias')
         .select('*')
         .eq('correo', session.user.email)
+        .eq('estado', true)
         .single();
 
-      if (usuarioCorreduria) {
-        // Determinar el rol basado en el valor numérico
-        let rolString = 'tecnico';
-        if (usuarioCorreduria.rol === 3) {
-          rolString = 'superadmin';
-        } else if (usuarioCorreduria.rol === 1) {
-          rolString = 'admin';
+      if (usuarioError) {
+        if (usuarioError.code !== 'PGRST116') {
+          console.error('Error al verificar estado de autenticación:', usuarioError);
         }
-
-        user.value = {
-          id: session.user.id,
-          email: session.user.email!,
-          nombre: usuarioCorreduria.nombre,
-          foto: usuarioCorreduria.foto,
-          id_correduria: usuarioCorreduria.id_correduria,
-          rol: rolString,
-          es_primer_login: !usuarioCorreduria.fecha_modificado,
-        };
-        authStatus.value = AuthStatus.Authenticated;
-        return true;
+        return logout();
       }
 
-      return logout();
+      if (!usuarioCorreduria) {
+        console.warn('No se encontró el usuario en la tabla usuarios_corredurias');
+        return logout();
+      }
+
+      // Determinar el rol basado en el valor numérico
+      let rolString = 'tecnico';
+      const rolNum = Number(usuarioCorreduria.rol);
+        
+      if (rolNum === 3) {
+        rolString = 'superadmin';
+      } else if (rolNum === 1) {
+        rolString = 'admin';
+      }
+
+      user.value = {
+        id: session.user.id,
+        email: session.user.email!,
+        nombre: `${usuarioCorreduria.nombres || ''} ${usuarioCorreduria.apellidos || ''}`,
+        foto: usuarioCorreduria.avatar,
+        id_correduria: usuarioCorreduria.id_correduria,
+        rol: rolString,
+        es_primer_login: !usuarioCorreduria.fecha_modificado,
+      };
+      
+      authStatus.value = AuthStatus.Authenticated;
+      return true;
     } catch (error) {
       console.error(error);
       return logout();

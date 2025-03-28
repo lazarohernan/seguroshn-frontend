@@ -71,7 +71,9 @@ export const loginAction = async (
     }
 
     // Verificamos en usuarios_corredurias (que ahora incluye superadmins)
-    console.log('Verificando si es usuario de correduría...');
+    console.log('Verificando usuario en el sistema...');
+    
+    // Obtener información del usuario de la base de datos
     const { data: usuarioCorreduria, error: usuarioError } = await supabase
       .from('usuarios_corredurias')
       .select('*')
@@ -79,42 +81,57 @@ export const loginAction = async (
       .eq('estado', true)
       .single();
 
-    if (usuarioError && usuarioError.code !== 'PGRST116') {
-      console.error('Error al verificar usuario de correduría:', usuarioError);
-    }
-
-    if (usuarioCorreduria) {
-      console.log('Usuario identificado:', usuarioCorreduria);
-      
-      // Determinamos el rol basado en el valor numérico
-      let rolString = 'tecnico';
-      if (usuarioCorreduria.rol === 3) {
-        rolString = 'superadmin';
-      } else if (usuarioCorreduria.rol === 1) {
-        rolString = 'admin';
+    if (usuarioError) {
+      if (usuarioError.code !== 'PGRST116') {
+        console.error('Error al verificar usuario:', usuarioError);
       }
       
+      console.log('Usuario autenticado pero no encontrado en el sistema');
+      await supabase.auth.signOut();
+      localStorage.removeItem('supabase-auth');
+      localStorage.removeItem('sb-access-token');
+      localStorage.removeItem('sb-refresh-token');
+      
       return {
-        ok: true,
-        id: authData.user.id,
-        email,
-        nombre: `${usuarioCorreduria.nombres || ''} ${usuarioCorreduria.apellidos || ''}`,
-        foto: usuarioCorreduria.avatar,
-        id_correduria: usuarioCorreduria.id_correduria,
-        rol: rolString,
-        es_primer_login: !usuarioCorreduria.fecha_modificado
+        ok: false,
+        message: 'No se encontró tu cuenta en el sistema.'
       };
     }
 
-    console.log('Usuario autenticado pero sin rol asignado');
-    await supabase.auth.signOut();
-    localStorage.removeItem('supabase-auth');
-    localStorage.removeItem('sb-access-token');
-    localStorage.removeItem('sb-refresh-token');
+    if (!usuarioCorreduria) {
+      console.error('Usuario no encontrado en el sistema');
+      await supabase.auth.signOut();
+      localStorage.removeItem('supabase-auth');
+      localStorage.removeItem('sb-access-token');
+      localStorage.removeItem('sb-refresh-token');
+      
+      return {
+        ok: false,
+        message: 'Tu cuenta no tiene permisos para acceder a esta plataforma.'
+      };
+    }
+    
+    console.log('Usuario identificado en el sistema:', usuarioCorreduria);
+    
+    // Determinamos el rol basado en el valor numérico
+    let rolString = 'tecnico';
+    const rolNum = Number(usuarioCorreduria.rol);
+    
+    if (rolNum === 3) {
+      rolString = 'superadmin';
+    } else if (rolNum === 1) {
+      rolString = 'admin';
+    }
     
     return {
-      ok: false,
-      message: 'Tu cuenta no tiene permisos para acceder a esta plataforma.'
+      ok: true,
+      id: authData.user.id,
+      email,
+      nombre: `${usuarioCorreduria.nombres || ''} ${usuarioCorreduria.apellidos || ''}`,
+      foto: usuarioCorreduria.avatar,
+      id_correduria: usuarioCorreduria.id_correduria,
+      rol: rolString,
+      es_primer_login: !usuarioCorreduria.fecha_modificado
     };
 
   } catch (error) {
