@@ -6,34 +6,27 @@ import { VueQueryPlugin } from '@tanstack/vue-query';
 import Toast from 'vue-toastification';
 import 'vue-toastification/dist/index.css';
 
-// Importar TokenManager y cliente Supabase para inicialización
-import { tokenManager, supabase } from '@/lib/supabase';
+// Importar cliente Supabase para inicialización
+import { supabase } from '@/lib/supabase';
 
 import './style.css';
 
 // Inicializar el sistema de gestión de tokens de Supabase
 console.log('Iniciando sistema de gestión de tokens Supabase...');
 
-// Función para inicializar el TokenManager de manera robusta
-const initializeTokenManager = async () => {
-  if (!tokenManager) {
-    console.error('Error crítico: TokenManager no pudo inicializarse');
-    return;
-  }
-  
-  console.log('TokenManager inicializado correctamente');
-  
+// Función para inicializar la sesión de manera robusta
+const initializeSession = async () => {
   try {
     // Intentar refrescar el token inmediatamente si hay una sesión
     const { data } = await supabase.auth.getSession();
     
     if (data.session) {
-      console.log('Sesión activa detectada, refrescando token...');
+      console.log('Sesión activa detectada, token válido');
       
       // Intentar refrescar de manera forzada para asegurar tokens válidos
-      const refreshedSession = await tokenManager.refreshToken();
+      const { data: refreshData } = await supabase.auth.refreshSession();
       
-      if (refreshedSession) {
+      if (refreshData.session) {
         console.log('Token refrescado exitosamente al inicio de la aplicación');
       } else {
         console.warn('No se pudo refrescar el token al inicio, pero se reintentará automáticamente');
@@ -47,7 +40,7 @@ const initializeTokenManager = async () => {
 };
 
 // Iniciar el proceso de manera asíncrona pero sin bloquear el arranque de la app
-initializeTokenManager();
+initializeSession();
 
 // Configurar event listeners pasivos para mejorar el rendimiento de desplazamiento
 const supportsPassive = (() => {
