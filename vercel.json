@@ -1,42 +1,31 @@
 {
-  "framework": "vite",
-  "buildCommand": "vue-tsc -b && vite build",
-  "outputDirectory": "dist",
-  "env": {
-    "VITE_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkZWphemNndWVkcXlsaGNod2pnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMwNDE3NjEsImV4cCI6MjA1ODYxNzc2MX0.7bJlCKvbQsDRTMZOCPILaI7WGXp2nAk4x2zPMk3gL0U"
-  },
-  "routes": [
+  "rewrites": [
     {
-      "src": "/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
-      "src": "/(.*).js",
-      "dest": "/$1.js"
-    },
-    {
-      "src": "/(.*).css",
-      "dest": "/$1.css"
-    },
-    {
-      "src": "/(.*).svg",
-      "dest": "/$1.svg"
-    },
-    {
-      "src": "/(.*).ico",
-      "dest": "/$1.ico"
-    },
-    {
-      "src": "/(.*).png",
-      "dest": "/$1.png"
-    },
-    {
-      "src": "/(.*).jpg",
-      "dest": "/$1.jpg"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
-  ]
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Origin, X-Requested-With, Content-Type, Accept, Authorization, apikey"
+        }
+      ]
+    }
+  ],
+  "buildCommand": "npm run build:vercel",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "regions": ["sfo1"]
 }
